@@ -132,6 +132,8 @@ Get from bed to work
 //		Create a copy (temp) of the board in that function and use that to test 
 //  A way to iterate over the container of a connected areas coordinate pairs.
 //	Keep a container that the connected cells have that keeps track of all the unknown cells they are surrounded by
+// A solve function that should keep track of its current state when solving if we try to mark a cell 
+// - that has already been marked a color we should return a "contradiction state" and stop solving so we can fix errors
 
 
 //  Reserach strategy solving tips on wikipedia 
@@ -141,16 +143,44 @@ Get from bed to work
 // TODO: finish filtering these into tasks
 
 Once an island is "complete"—that is, it has all the white cells its number requires—all cells that share a side with it must be black. Obviously, any cells marked with '1' at the outset are complete islands unto themselves, and can be isolated with black at the beginning.
+	Logic that checks if a set of connected numbered cells has the number that it requires.
+	function that will iterate over the set of connected numbered and mark all valid neighbor cells that share a side with it black
+	a function that will find all islands of size 1 
+	a function that will mark all valid adjacent cells to a 1 black.
+
+	
 
 Whenever three black cells form an "elbow"—an L-shape—the cell in the bend (diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
+	A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
+
 
 All black cells must eventually be connected. If there is a black region with only one possible way to connect to the rest of the board, the sole connecting pathway must be black.
-	Corollary: there cannot be a continuous path, using either vertical, horizontal or diagonal steps, of white cells from one cell lying on the edge of the board to a different cell like that, that encloses some black cells inside, because otherwise, the black cells won't be connected.
+Corollary: there cannot be a continuous path, using either vertical, horizontal or diagonal steps, of white cells from one cell lying on the edge of the board to a different cell like that, that encloses some black cells inside, because otherwise, the black cells won't be connected.
+	A function that checks if all black cells are connected.
+	A function that checks if there is an unknown cell that needs to be black to connect 2 black squares (that are diagional?)
+	A function that sets a cell that needs to be a connecting black square to black.
+
 
 All white cells must eventually be part of exactly one island. If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
+	A function that checks if there is connected or not connected white cells that are not numbered yet.
+	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
+	A function that marks the sole connecting pathway as part of that numbered region
 
 Some puzzles will require the location of "unreachables"—cells that cannot be connected to any number, being either too far away from all of them or blocked by other numbers. Such cells must be black. Often, these cells will have only one route of connection to other black cells or will form an elbow whose required white cell (see previous bullet) can only reach one number, allowing further progress.
-
+	A function that tests for unreachable cells.
+		function that will create a sequence container(queue?) and push the current cell
+		- then while the queue is not empty test the current cell
+		- each time at the end of the loop pushing all valid neighboring cells into the queue for testing
+		- the indepth logic for testing between the inital tests on a cell and when we add valid neighbor cells
+		- still needs to be deteremined but we will start our current cell counter at 1, then each time the loop 
+		- restarts we will pop once and add one to the counter then test that counter against a numbered region 
+		- or white region if we encounter one when stepping. 
+		- Function to check if connecting our region with a white region will create an impossibly large white region.
+		- Function to test if adding our (current counter (+ 1 ?)) to a numbered region would be greater
+			than the size (amount of numbered squares connected) of that region.
+		- Function that runs test to make sure we wont connect 2 different numbered regions with eachother. 
+			- Funtion that will run a test on the current cell we are looking at that will check if there are 2 nearby
+				different numbered regions (connected cells)
 
 //		If an island of size N already has N-1 white cells identified, and there are only two remaining cells to choose from, and those two cells touch at their corners, then the cell between those two that is on the far side of the island must be black.	
 //			function to test (If an island of size N already has N-1 white cells identified) ~ bool function(Island)
@@ -160,7 +190,6 @@ Some puzzles will require the location of "unreachables"—cells that cannot be co
 //			function that determines if an island only has two possible cells left to choose from and only needs one more cell.
 //			function that determines if two cells touch at their corners. (diagional to eachother)
 //			function that will mark the cell that is between two diagional cells as black
-//		A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
 //		A function that tests if only two islands can connect to a white cell.
 //		A function that tests if an island will have no unidentified cells left after connecting to a white cell.
 //		A function that sets a white cell to an island cell (when a numbered cell connects to a white cell)
@@ -213,8 +242,9 @@ Print result
 */
 
 
-
-
+Create Our Grid with our puzzle info (size, width, numbered cells)
+Have our grid solve our given puzzle
+Output the result to console (cout)
 
 
 
