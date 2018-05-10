@@ -43,6 +43,7 @@ vector<pair<Coordinate2D, int> > NumberedIslandCells
 };
 
 
+
 int main()
 {
 
@@ -50,23 +51,7 @@ int main()
 	// TODO: Filter into function
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
-
-	for (int y = 0; y < Height; ++y)
-	{
-		for (int x = 0; x < Width; ++x)
-		{
-			if (static_cast<int>(GameBoard(Coordinate2D(x, y))->GetState()) < 0)
-			{
-				cout << "X" << " ";
-			}
-			else
-			{
-				cout << static_cast<int>(GameBoard(Coordinate2D(x, y))->GetState()) << " ";
-			}
-		}
-		cout << endl; // End of the row or column idk..
-
-	} cout << endl << endl;
+	GameBoard.PrintGrid(); 
 
 
 	return 0;

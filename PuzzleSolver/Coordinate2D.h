@@ -6,7 +6,7 @@
 #define Coordinate2D_H
 
 //#include <iosfwd>
-#include <utility> // std::pair
+//#include <utility> // std::pair (not used anymore)
 
 //class ostream;
 
@@ -19,7 +19,6 @@ private:
 public:
 	Coordinate2D() = delete;
 	Coordinate2D(int x, int y) : m_X{ x }, m_Y{ y } {}
-	Coordinate2D(std::pair<int, int> InPair) : m_X{ InPair.first }, m_Y{ InPair.second } {}
 	~Coordinate2D() = default;
 
 	friend bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);

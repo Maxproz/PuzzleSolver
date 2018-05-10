@@ -49,16 +49,21 @@ public:
 
 
 	// TODO: How the hell do I get the deep copy with 2D arrays working.
-	Grid(const Grid& Copy) = delete;
-	Grid& operator=(const Grid& CopyAssign) = delete;
-
+	//Grid(const Grid& Copy) = delete;
+	Grid(const Grid& Copy);
+	//Grid& operator=(const Grid& CopyAssign) = delete;
+	Grid& operator=(const Grid& CopyAssign);
 
 	Grid(Grid&& Move);
-	//Grid& operator=(Grid&& MoveAssign); // TODO: Implement
+	Grid& operator=(Grid&& MoveAssign); 
+
 
 	Cell* operator()(const Coordinate2D& Pos);
+	const Cell* operator()(const Coordinate2D& Pos) const;
 
 	void swap(Grid& other);
+
+	void PrintGrid() const;
 
 private:
 	void AddRegion(Cell* InCell);
