@@ -18,7 +18,7 @@
 // TODO: A "Valid(Coordinate2D)" function ~ maybe pass it a cell? 
 // TODO: A "For Valid Neightbors(Coordinate2D)" function ~ maybe pass it a cell?
 // TODO: Get the code timer working for the solving code in main().
-
+// TODO: Study the constructor code that uses push_back on entire vectors of unique_ptrs and study how it is adding rows/columns 
 
 // Step 1: Define the problem (I want a better way to keep track of my friends’ phone numbers.)
 
