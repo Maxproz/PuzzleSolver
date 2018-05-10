@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "Cell.h"
-
+#include "Region.h"
 
 using namespace std;
 
@@ -128,7 +128,8 @@ Grid& Grid::operator=(Grid&& MoveAssign)
 void Grid::AddRegion(Cell* InCell) // non-owning param
 {
 	set<Cell*> Unknowns;
-	// //	insert_valid_unknown_neighbors(unknowns, x, y);
+	//	insert_valid_unknown_neighbors(unknowns, x, y);
+	// TODO: Do this next
 
 	auto NewRegion = unique_ptr<Region>(new Region(InCell, Unknowns));
 
@@ -183,6 +184,20 @@ void Grid::PrintGrid() const
 
 	} cout << endl << endl;
 
+}
+
+void Grid::PrintAllCellsInAllRegions() const
+{
+	int RegionCounter = 1;
+	for (const auto& region : m_Regions)
+	{
+		std::cout << "Region " << RegionCounter << ": ";
+		for (auto beg = (*region).Begin(); beg != region->End(); ++beg)
+		{
+			cout << (*beg)->GetPosition() << endl;
+		}
+		RegionCounter++;
+	}
 }
 
 

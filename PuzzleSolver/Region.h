@@ -28,9 +28,28 @@ public:
 	std::set<Cell*>& GetCellsInRegion() { return m_Cells; }
 	std::set<Cell*>& GetUnknownsAroundRegion() { return m_Unknowns; }
 
-private:
 
-	
+	std::set<Cell*>::const_iterator Begin() const;
+	std::set<Cell*>::const_iterator End() const;
+	int RegionSize() const;
+
+	std::set<Cell*>::const_iterator UnknownsBegin() const;
+	std::set<Cell*>::const_iterator UnknownsEnd() const;
+	int UnknownsSize() const;
+
+	bool IsWhite() const;
+	bool IsBlack() const;
+	bool IsNumbered() const;
+
+	int GetNumber() const;
+
+	// once a cell has been confirmed enough to be added to a regions set of contained cooridnates
+	// - we should need to remove it, so we don't need a remove function for that std::set of cell pointers
+
+	bool Contains(Cell* InCellPtr) const;
+
+	void EraseUnknown(Cell* InUnknownCell);
+
 
 private:
 	std::set<Cell*> m_Unknowns;

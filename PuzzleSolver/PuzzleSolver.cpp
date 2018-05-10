@@ -51,8 +51,14 @@ int main()
 	// TODO: Filter into function
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
-	GameBoard.PrintGrid(); 
+	GameBoard.PrintGrid(); // Working
 
+	cout << endl;
+	GameBoard.PrintAllCellsInAllRegions(); // Working
+	cout << endl;
+
+
+	
 
 	return 0;
 }

@@ -5,10 +5,12 @@
 
 #define Coordinate2D_H
 
-//#include <iosfwd>
+#include <iosfwd>
+
+
 //#include <utility> // std::pair (not used anymore)
 
-//class ostream;
+class ostream;
 
 class Coordinate2D
 {
@@ -23,7 +25,7 @@ public:
 
 	friend bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);
 	friend bool operator!=(const Coordinate2D& lhs, const Coordinate2D& rhs);
-	//friend std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
+	friend std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
 
 	int GetX() const { return m_X; }
 	int GetY() const { return m_Y; }
@@ -35,7 +37,9 @@ private:
 
 bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);
 bool operator!=(const Coordinate2D& lhs, const Coordinate2D& rhs);
-//std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
+std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
+
+
 
 
 #endif // !Coordinate2D_H

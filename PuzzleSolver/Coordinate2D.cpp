@@ -1,7 +1,7 @@
 
 #include "Coordinate2D.h"
 
-//#include <iostream>
+#include <iostream>
 
 // #include <utility> (not used anymore)
 
@@ -21,9 +21,10 @@ bool operator!=(const Coordinate2D & lhs, const Coordinate2D & rhs)
 	return !(lhs.Equals(rhs));
 }
 
-//std::ostream & operator<<(std::ostream & os, const Coordinate2D & rhs)
-//{
-//	// TODO: insert return statement here
-//	os << rhs.m_X << "," << rhs.m_Y;
-//	return os;
-//}
+
+std::ostream & operator<<(std::ostream & os, const Coordinate2D & rhs)
+{
+	// TODO: insert return statement here
+	os << "(" << rhs.m_X << "," << rhs.m_Y << ")";
+	return os;
+}

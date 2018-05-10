@@ -64,6 +64,7 @@ public:
 	void swap(Grid& other);
 
 	void PrintGrid() const;
+	void PrintAllCellsInAllRegions() const;
 
 private:
 	void AddRegion(Cell* InCell);
