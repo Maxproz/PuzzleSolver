@@ -43,12 +43,10 @@ vector<pair<Coordinate2D, int> > NumberedIslandCells
 };
 
 
-
 int main()
 {
 
-	// TODO: Get a better system for printing the board working.
-	// TODO: Filter into function
+
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
 	GameBoard.PrintGrid(); // Working
@@ -57,8 +55,17 @@ int main()
 	GameBoard.PrintAllCellsInAllRegions(); // Working
 	cout << endl;
 
+	cout << endl;
+	GameBoard.PrintAllUnknownsInAllRegions();
+	cout << endl;
 
-	
+	//auto TestCord = Coordinate2D(9, 0);
+
+	//if (IsValid(Coordinate2D(TestCord.GetX() + 1, TestCord.GetY())))
+	//	cout << "Valid" << endl;
+	//else
+	//	cout << "Not Valid" << endl;
+
 
 	return 0;
 }

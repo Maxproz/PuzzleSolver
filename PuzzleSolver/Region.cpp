@@ -9,8 +9,8 @@ Region::Region(Cell* InCell, const std::set<Cell*>& InUnknowns)
 	m_RegionState = InCell->GetState();
 	m_Unknowns = InUnknowns;
 
-	// TODO: I need to add the unknowns here that I get passed when allocating a new region.
-
+	// No I don't when I create a region from a cell I add it's unknown neighbors to it.
+	// - Then at the start of this function I use the std::set<Cell*> default copy assignment operator to copy the ptr values.
 
 	m_Cells.insert(InCell);
 }

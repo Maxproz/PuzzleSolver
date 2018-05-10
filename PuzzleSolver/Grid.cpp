@@ -129,6 +129,8 @@ void Grid::AddRegion(Cell* InCell) // non-owning param
 {
 	set<Cell*> Unknowns;
 	//	insert_valid_unknown_neighbors(unknowns, x, y);
+	For_All_Valid_Unknown_Neighbors(InCell, 
+		[&Unknowns](Cell* NeighborCell) -> auto { Unknowns.insert(NeighborCell); });
 	// TODO: Do this next
 
 	auto NewRegion = unique_ptr<Region>(new Region(InCell, Unknowns));
@@ -145,14 +147,22 @@ void Grid::AddRegion(Cell* InCell) // non-owning param
 
 Cell* Grid::operator()(const Coordinate2D& Pos)
 {
-	// TODO: if is_valid(Pos)
-	return m_Cells[Pos.GetX()][Pos.GetY()].get();
+	if (IsValid(Pos))
+	{
+		return m_Cells[Pos.GetX()][Pos.GetY()].get();
+	}
+
+	return nullptr;
 }
 
 const Cell* Grid::operator()(const Coordinate2D& Pos) const
 {
-	// TODO: if is_valid(Pos)
-	return m_Cells[Pos.GetX()][Pos.GetY()].get();
+	if (IsValid(Pos))
+	{
+		return m_Cells[Pos.GetX()][Pos.GetY()].get();
+	}
+
+	return nullptr;
 }
 
 void Grid::swap(Grid& other) 
@@ -200,4 +210,41 @@ void Grid::PrintAllCellsInAllRegions() const
 	}
 }
 
+void Grid::PrintAllUnknownsInAllRegions() const
+{
+	int RegionCounter = 1;
+	for (const auto& region : m_Regions)
+	{
+		std::cout << "Region " << RegionCounter << " Unknowns" << endl;
+		for (auto beg = (*region).UnknownsBegin(); beg != region->UnknownsEnd(); ++beg)
+		{
+			cout << (*beg)->GetPosition() << endl;
+		}
+		RegionCounter++;
+	}
+}
 
+
+// A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
+bool Grid::IsValid(Coordinate2D Cord) const
+{
+	if (Cord.GetX() >= 0 && Cord.GetX() < m_Width && Cord.GetY() >= 0 && Cord.GetY() < m_Height)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+bool Grid::IsValid(Cell* InCell) const
+{
+	if (!InCell)
+		return false;
+
+	if (InCell->GetPosition().GetX() >= 0 && InCell->GetPosition().GetX() < m_Width &&
+		InCell->GetPosition().GetY() >= 0 && InCell->GetPosition().GetY() < m_Height)
+	{
+		return true;
+	}
+	return false;
+}

@@ -65,9 +65,128 @@ public:
 
 	void PrintGrid() const;
 	void PrintAllCellsInAllRegions() const;
+	void PrintAllUnknownsInAllRegions() const;
 
 private:
 	void AddRegion(Cell* InCell);
+
+	
+
+
+	// A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
+	// TODO: Is having 2 versions here really necessary
+	bool IsValid(Coordinate2D Cord) const;
+	bool IsValid(Cell* InCell) const;
+
+
+	template <typename Functor>
+	void For_All_Valid_Neighbors(Cell* InCell, Functor Func)
+	{
+		// You were given a cell check all of its neighbors and if its a valid cell on the board
+		// - (not outside of the grid) run the functor
+		auto InX = InCell->GetPosition().GetX();
+		auto InY = InCell->GetPosition().GetY();
+
+		// When checking valid neighboring cells lets start at the top then go clockwise 
+		auto TopCell = operator()(Coordinate2D(InX, InY - 1));
+
+		if (IsValid(TopCell))
+		{
+			Func(TopCell);
+		}
+
+		auto RightCell = operator()(Coordinate2D(InX + 1, InY));
+
+		if (IsValid(RightCell))
+		{
+			Func(RightCell);
+		}
+
+
+		auto BottomCell = operator()(Coordinate2D(InX, InY + 1));
+
+		if (IsValid(BottomCell))
+		{
+			Func(BottomCell);
+		}
+
+		auto LeftCell = operator()(Coordinate2D(InX - 1, InY));
+
+		if (IsValid(LeftCell))
+		{
+			Func(LeftCell);
+		}
+	}
+
+	template <typename Functor>
+	void For_All_Valid_Unknown_Neighbors(Cell* InCell, Functor Func)
+	{
+		// You were given a cell check all of its neighbors and if its a valid cell on the board
+		// - (not outside of the grid) run the functor
+		auto InX = InCell->GetPosition().GetX();
+		auto InY = InCell->GetPosition().GetY();
+
+		// When checking valid neighboring cells lets start at the top then go clockwise 
+		auto TopCell = operator()(Coordinate2D(InX, InY - 1));
+
+		if (IsValid(TopCell))
+		{
+			if (TopCell->GetState() == State::Unknown)
+			{
+				Func(TopCell);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+		auto RightCell = operator()(Coordinate2D(InX + 1, InY));
+
+		if (IsValid(RightCell))
+		{
+			if (RightCell->GetState() == State::Unknown)
+			{
+				Func(RightCell);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+
+		auto BottomCell = operator()(Coordinate2D(InX, InY + 1));
+
+		if (IsValid(BottomCell))
+		{
+			if (BottomCell->GetState() == State::Unknown)
+			{
+				Func(BottomCell);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+		auto LeftCell = operator()(Coordinate2D(InX - 1, InY));
+
+		if (IsValid(LeftCell))
+		{
+			if (LeftCell->GetState() == State::Unknown)
+			{
+				Func(LeftCell);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+	}
+
+
 
 private:
 	int m_Width{ 0 };
