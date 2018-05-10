@@ -9,7 +9,11 @@
 
 #include <vector> // Used as a data member
 #include <memory> // Used as a data member
+#include <set>
 
+#include "Region.h" // would need to use pimpl to remove header
+
+class Coordinate2D; // need name for function parameters
 
 // Grid is a composition of the parts...
 // Part 1: A 2D array of Cell pointers (lets try unique then shared if it doesnt work)
@@ -31,19 +35,45 @@
 // TODO TEST: After Marking a cell black or white first create a new region using it.
 // TODO TEST: After marking a cell (black or white), we should iterate all of its valid neighbors and attempt to fuse regions
 
-class Cell; // need name for data member
-// class Coordinate2D; // TODO: Remove if not needed. (Think I need this name for func parameters later on)
 
 
 class Grid
 {
 public:
-
 	// TODO: Think about which type of operations I will need here
 
+	// Grid should be constructed with a given width, height, and set of Coordinates with a number for the island(numbered cell) locations.
+	Grid() = delete;
+	Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> NumberedCellLocations);
+	~Grid() = default; // using smart pointers, default destructor is fine.
+
+
+	// TODO: How the hell do I get the deep copy with 2D arrays working.
+	Grid(const Grid& Copy) = delete;
+	Grid& operator=(const Grid& CopyAssign) = delete;
+
+
+	Grid(Grid&& Move);
+	//Grid& operator=(Grid&& MoveAssign); // TODO: Implement
+
+	Cell* operator()(const Coordinate2D& Pos);
+
+	void swap(Grid& other);
+
 private:
+	void AddRegion(Cell* InCell);
+
+private:
+	int m_Width{ 0 };
+	int m_Height{ 0 };
+
+
 	// TODO: m_cells should be allocated in the constructor of grid.
 	std::vector<std::vector<std::unique_ptr<Cell > > > m_Cells;
+
+	// The set of all regions ~ created inside of AddRegion probably.
+	// Set is preventing having multiple pointers to the same region in here.
+	std::set<std::unique_ptr<Region> > m_Regions; 
 
 };
 

@@ -14,6 +14,12 @@
 // http://homepages.e3.net.nz/~djm/cppstrings.html
 
 
+// TODO: Move the TODO: notes around the program into the list here.
+// TODO: A "Valid(Coordinate2D)" function ~ maybe pass it a cell? 
+// TODO: A "For Valid Neightbors(Coordinate2D)" function ~ maybe pass it a cell?
+// TODO: Get the code timer working for the solving code in main().
+
+
 // Step 1: Define the problem (I want a better way to keep track of my friends’ phone numbers.)
 
 // I want to make a solver for nurikabe puzzles.

@@ -28,3 +28,7 @@ PuzzleSolver/PuzzleSolver.vcxproj
 PuzzleSolver/PuzzleSolver.vcxproj.filters
 PuzzleSolver/x64/Debug/PuzzleSolver.tlog/unsuccessfulbuild
 PuzzleSolver/x64/Debug/vc140.idb
+PuzzleSolver/x64/Debug/PuzzleSolver.res
+PuzzleSolver/x64/Debug/PuzzleSolver.tlog/rc.command.1.tlog
+PuzzleSolver/x64/Debug/PuzzleSolver.tlog/rc.read.1.tlog
+PuzzleSolver/x64/Debug/PuzzleSolver.tlog/rc.write.1.tlog

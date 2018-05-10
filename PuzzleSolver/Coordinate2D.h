@@ -5,9 +5,10 @@
 
 #define Coordinate2D_H
 
-#include <iosfwd>
+//#include <iosfwd>
+#include <utility> // std::pair
 
-class ostream;
+//class ostream;
 
 class Coordinate2D
 {
@@ -17,13 +18,16 @@ private:
 
 public:
 	Coordinate2D() = delete;
-	constexpr Coordinate2D(double x, double y) : m_X{ x }, m_Y{ y } {}
+	Coordinate2D(int x, int y) : m_X{ x }, m_Y{ y } {}
+	Coordinate2D(std::pair<int, int> InPair) : m_X{ InPair.first }, m_Y{ InPair.second } {}
 	~Coordinate2D() = default;
 
 	friend bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);
 	friend bool operator!=(const Coordinate2D& lhs, const Coordinate2D& rhs);
-	friend std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
+	//friend std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
 
+	int GetX() const { return m_X; }
+	int GetY() const { return m_Y; }
 
 private:
 	int m_X{ 0 };
@@ -32,7 +36,7 @@ private:
 
 bool operator==(const Coordinate2D& lhs, const Coordinate2D& rhs);
 bool operator!=(const Coordinate2D& lhs, const Coordinate2D& rhs);
-std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
+//std::ostream& operator<<(std::ostream& os, const Coordinate2D& rhs);
 
 
 #endif // !Coordinate2D_H
