@@ -12,6 +12,8 @@
 #include <vector>
 #include <iterator>
 #include <iostream>
+#include <sstream>   // for TimerCode ~ ostringstream variable
+#include "Windows.h" // for TimerCode ~ LARGE_INTEGER and QueryPerformanceCounter(&li);
 
 #include "Grid.h"
 #include "Coordinate2D.h"
@@ -43,28 +45,72 @@ vector<pair<Coordinate2D, int> > NumberedIslandCells
 };
 
 
+// TODO: Get the code timer working for the solving code in main().
+
+long long counter()
+{
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	return li.QuadPart;
+}
+
+long long frequency() 
+{
+	LARGE_INTEGER li;
+	QueryPerformanceFrequency(&li);
+	return li.QuadPart;
+}
+
+string format_time(const long long start, const long long finish)
+{
+	ostringstream oss;
+
+	if ((finish - start) * 1000 < frequency())
+	{
+		oss << (finish - start) * 1000000.0 / frequency() << " microseconds";
+	}
+	else if (finish - start < frequency())
+	{
+		oss << (finish - start) * 1000.0 / frequency() << " milliseconds";
+	}
+	else
+	{
+		oss << (finish - start) * 1.0 / frequency() << " seconds";
+	}
+
+	return oss.str();
+}
+
+
 int main()
 {
 
+	const long long start = counter();
 
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
+	
+	// TODO: Add a function (something like GameBoard.Solve(); )
+	// - that I can use to time how long it takes to solve a puzzle
+		// while (g.solve() == Grid::KEEP_GOING) {}
+
+	const long long finish = counter();
+
+	// As of right now all I am timing is how long it takes to construct the puzzle (allocate Cells on Heap etc..)
+	cout << "Timed Code Result: " << ": " << format_time(start, finish) << ", " << endl;
+
+
 	GameBoard.PrintGrid(); // Working
 
-	cout << endl;
-	GameBoard.PrintAllCellsInAllRegions(); // Working
-	cout << endl;
 
-	cout << endl;
-	GameBoard.PrintAllUnknownsInAllRegions();
-	cout << endl;
+	//cout << endl;
+	//GameBoard.PrintAllCellsInAllRegions(); // Working
+	//cout << endl;
 
-	//auto TestCord = Coordinate2D(9, 0);
+	//cout << endl;
+	//GameBoard.PrintAllUnknownsInAllRegions();
+	//cout << endl;
 
-	//if (IsValid(Coordinate2D(TestCord.GetX() + 1, TestCord.GetY())))
-	//	cout << "Valid" << endl;
-	//else
-	//	cout << "Not Valid" << endl;
 
 
 	return 0;

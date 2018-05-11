@@ -16,7 +16,7 @@
 
 // TODO: Move the TODO: notes around the program into the list here.
 
-// TODO: Get the code timer working for the solving code in main().
+
 // TODO: Study the constructor code that uses push_back on entire vectors of unique_ptrs and study how it is adding rows/columns 
 
 // TODO: Get a better system for printing the board working.
