@@ -99,7 +99,7 @@ int main()
 	const long long finish = counter();
 
 	// Print how long it took to solve the puzzle
-	cout << "Timed Code Result: " << ": " << format_time(start, finish) << ", " << endl;
+	cout << "Puzzle Solve Time: " << ": " << format_time(start, finish) << ", " << endl << endl;
 
 
 	GameBoard.PrintGrid(); // Working

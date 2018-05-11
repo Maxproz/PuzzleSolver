@@ -208,7 +208,7 @@ void Grid::PrintGrid() const
 		}
 		cout << endl; // End of the row or column idk..
 
-	} cout << endl << endl;
+	} cout << endl;
 
 }
 

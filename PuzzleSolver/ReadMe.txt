@@ -130,15 +130,10 @@ Get from bed to work
 
 // TODO: finish filtering these into tasks
 
-Whenever three black cells form an "elbow"—an L-shape—the cell in the bend (diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
-	A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
 
 
-All black cells must eventually be connected. If there is a black region with only one possible way to connect to the rest of the board, the sole connecting pathway must be black.
-Corollary: there cannot be a continuous path, using either vertical, horizontal or diagonal steps, of white cells from one cell lying on the edge of the board to a different cell like that, that encloses some black cells inside, because otherwise, the black cells won't be connected.
-	A function that checks if all black cells are connected.
-	A function that checks if there is an unknown cell that needs to be black to connect 2 black squares (that are diagional?)
-	A function that sets a cell that needs to be a connecting black square to black.
+
+
 
 
 All white cells must eventually be part of exactly one island. If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
