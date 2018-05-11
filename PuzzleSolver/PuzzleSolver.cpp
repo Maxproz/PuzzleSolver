@@ -84,25 +84,27 @@ string format_time(const long long start, const long long finish)
 
 int main()
 {
-
-	const long long start = counter();
-
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
-	
-	// TODO: Add a function (something like GameBoard.Solve(); )
-	// - that I can use to time how long it takes to solve a puzzle
-		// while (g.solve() == Grid::KEEP_GOING) {}
+	GameBoard.PrintGrid(); // Working
 
+	// we don't care how long it took to create our grid so we won't time it.
+	const long long start = counter();
+	// TODO: Make logic for solving something like 
+	// while (GameBoard.SolvePuzzle == Something..) so we can time how long it takes to solve, 
+	// Most likely we need a loop because to solve these puzzles means repeating some of the solving steps multiple times.
+	// It will know when it needs to stop when all cells are known(not unknown probably) 
+	// - so we will probably need a tracker variable for that, which shouldn't be that hard to put in.
+	GameBoard.SolvePuzzle();
 	const long long finish = counter();
 
-	// As of right now all I am timing is how long it takes to construct the puzzle (allocate Cells on Heap etc..)
+	// Print how long it took to solve the puzzle
 	cout << "Timed Code Result: " << ": " << format_time(start, finish) << ", " << endl;
 
 
 	GameBoard.PrintGrid(); // Working
 
-
+	// This is debug code.. can be removed later.
 	//cout << endl;
 	//GameBoard.PrintAllCellsInAllRegions(); // Working
 	//cout << endl;
@@ -110,8 +112,6 @@ int main()
 	//cout << endl;
 	//GameBoard.PrintAllUnknownsInAllRegions();
 	//cout << endl;
-
-
 
 	return 0;
 }

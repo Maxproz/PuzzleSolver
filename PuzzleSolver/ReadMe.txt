@@ -16,14 +16,8 @@
 
 // TODO: Move the TODO: notes around the program into the list here.
 
-
 // TODO: Study the constructor code that uses push_back on entire vectors of unique_ptrs and study how it is adding rows/columns 
-
 // TODO: Get a better system for printing the board working.
-// TODO: Filter into function
-
-
-
 
 
 // Step 1: Define the problem (I want a better way to keep track of my friends’ phone numbers.)
@@ -122,45 +116,19 @@ Get from bed to work
 //	Solve A NuriKabe Puzzle
 //	What are some things I need to do to solve a nurikabe puzzle
 
-//	setup the board (create a grid class)
-//	create the cells (do I want a cell class?)
-//	add the cells to the board.
-//		add a multidimensional array of pointers member "cells" to the board class
-//		in the constructor of the board allocate the cells on the heap and add them to the boards cells container
-//	logic for tracking the color of a cell (black, white, unknown)
-//		enum in the cell or board class?
-//	logic for tracking which cells are numbered (islands)
-//	logic for tracking which cells are connected
-//  logic for checking if a given coordinate pair is valid.
-//	Make sure there is only one numbered cell in an island
+//	Make sure there is only one numbered cell in an island (set of connected white cells)
 //  Make sure there is no pools (2x2 black cells)
-//	Set all cells are unknown at the start
-//  Set the numbered cells as numbered 
 //	Keep connected cells (coordinate pairs) black/white in a set (so coordinate pairs are unique)
-//  Figure out if I want to use a "regions" class for connected black/white cells.
-//	Setup the logic for a coordinate pair on the board 
-//		This is an implementation detail that I just need to document for myself.
 //	Make logic for a way to test if marking a cell a color will force another cell to be a color.
 //		Create a copy (temp) of the board in that function and use that to test 
-//  A way to iterate over the container of a connected areas coordinate pairs.
-//	Keep a container that the connected cells have that keeps track of all the unknown cells they are surrounded by
-// A solve function that should keep track of its current state when solving if we try to mark a cell 
+// A solve function that should keep track of its current state when solving if we try to mark a cell (50% done)
 // - that has already been marked a color we should return a "contradiction state" and stop solving so we can fix errors
 
 
-//  Reserach strategy solving tips on wikipedia 
-//		mark cells adjacent to two or more numbers as black.
 
+//  Reserach strategy solving tips on wikipedia 
 
 // TODO: finish filtering these into tasks
-
-Once an island is "complete"—that is, it has all the white cells its number requires—all cells that share a side with it must be black. Obviously, any cells marked with '1' at the outset are complete islands unto themselves, and can be isolated with black at the beginning.
-	Logic that checks if a set of connected numbered cells has the number that it requires.
-	function that will iterate over the set of connected numbered and mark all valid neighbor cells that share a side with it black
-	a function that will find all islands of size 1 
-	a function that will mark all valid adjacent cells to a 1 black.
-
-	
 
 Whenever three black cells form an "elbow"—an L-shape—the cell in the bend (diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
 	A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.

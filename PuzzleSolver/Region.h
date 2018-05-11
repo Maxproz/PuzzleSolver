@@ -28,7 +28,6 @@ public:
 	std::set<Cell*>& GetCellsInRegion() { return m_Cells; }
 	std::set<Cell*>& GetUnknownsAroundRegion() { return m_Unknowns; }
 
-
 	std::set<Cell*>::const_iterator Begin() const;
 	std::set<Cell*>::const_iterator End() const;
 	int RegionSize() const;

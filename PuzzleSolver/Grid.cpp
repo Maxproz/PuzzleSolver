@@ -177,17 +177,33 @@ void Grid::swap(Grid& other)
 // TODO: This is a temp print function to test output
 void Grid::PrintGrid() const
 {
+	// For printing the Grid 
+	// W == White Cell
+	// B == Black Cell
+	// X == Unknown Cell
+	// A Number (1 - 9) is the number of a numbered Cell
 	for (int y = 0; y < m_Height; ++y)
 	{
 		for (int x = 0; x < m_Width; ++x)
 		{
-			if (static_cast<int>(operator()(Coordinate2D(x, y))->GetState()) < 0) // is not a numbered area
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+
+			if (CurrentCell->GetState() == State::White)
+			{
+				cout << "W" << " ";
+			}
+			else if (CurrentCell->GetState() == State::Black)
+			{
+				cout << "B" << " ";
+			}
+			else if (CurrentCell->GetState() == State::Unknown)
 			{
 				cout << "X" << " ";
 			}
 			else
 			{
-				cout << static_cast<int>(operator()(Coordinate2D(x, y))->GetState()) << " ";
+				// Prints the number of a numbered cell
+				cout << static_cast<int>(CurrentCell->GetState()) << " ";
 			}
 		}
 		cout << endl; // End of the row or column idk..
@@ -222,6 +238,146 @@ void Grid::PrintAllUnknownsInAllRegions() const
 		}
 		RegionCounter++;
 	}
+}
+
+
+
+void Grid::SolvePuzzle()
+{
+	// Start by solving using the wikipedia steps
+	// - Just organize/refactor using your best judgement
+
+	// Step 1 
+	// mark cells adjacent to two or more numbers as black.
+	SolveCellsWithTwoAdjacentNumberedCells(); // Verified working.
+
+	// Step 2 
+	// Once an island is "complete"—that is, it has all the white cells its number requires—all cells that share a side with it must be black.Obviously, any cells marked with '1' at the outset are complete islands unto themselves, and can be isolated with black at the beginning.
+	SolveUpdateCompleteIslands();
+
+
+	// TODO: OnHold 2x2 black pool verifiction 
+	// - OnHold until we have a good black pool to test on our board.
+	//		- Whenever three black cells form an "elbow"—an L - shape—the cell in the bend(diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
+	//			- A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
+
+	// TODO: Step 3
+	// All black cells must eventually be connected. If there is a black region with only one possible way to connect to the rest of the board, the sole connecting pathway must be black.
+	//	Corollary: there cannot be a continuous path, using either vertical, horizontal or diagonal steps, of white cells from one cell lying on the edge of the board to a different cell like that, that encloses some black cells inside, because otherwise, the black cells won't be connected.
+	//	A function that checks if all black cells are connected.
+	//	A function that checks if there is an unknown cell that needs to be black to connect 2 black squares(that are diagional ? )
+	//	A function that sets a cell that needs to be a connecting black square to black.
+	
+
+}
+
+set<Region*> Grid::GetAllNumberedRegions() const
+{
+	set<Region*> Result;
+
+	for (const auto& Reg : m_Regions)
+	{
+		if (Reg->IsNumbered())
+		{
+			Result.insert(Reg.get());
+		}
+	}
+
+	return Result;
+}
+
+// A complete region is region->Number() == region->RegionSize()
+void Grid::UpdateCompleteRegions(set<Region*> InNumberedRegions) 
+{
+	for (const auto& Reg : InNumberedRegions)
+	{
+		if (Reg->GetNumber() == Reg->RegionSize())
+		{
+			// The numbered region is complete
+			// For each cell in the region mark all valid adjacent cells of the cell in that region black
+			SetStateOfAllCellsInRegion(Reg, State::Black);
+		}
+	}
+}
+
+
+void Grid::SetStateOfAllCellsInRegion(Region* InRegion, const State& InState)
+{
+	if (InState == State::Black || InState == State::White)
+	{
+		if (InState == State::Black)
+		{
+			for (auto& CellInRegion : InRegion->GetCellsInRegion())
+			{
+				For_All_Valid_Neighbors(CellInRegion,
+					[this](Cell* NeighborCell) -> auto
+				{
+					MarkBlack(NeighborCell);
+				});
+			}
+		}
+		if (InState == State::White)
+		{
+			// TODO: Needs implemented
+		}
+	}
+	else
+	{
+		throw std::logic_error("Trying to set a state that is not black or white");
+	}
+
+}
+
+void Grid::SolveUpdateCompleteIslands()
+{
+	auto NumberedRegions = GetAllNumberedRegions();
+	UpdateCompleteRegions(NumberedRegions);
+}
+
+void Grid::SolveCellsWithTwoAdjacentNumberedCells()
+{
+	// For every cell on the board....
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto TestedCell = operator()(Coordinate2D(x, y));
+
+			if (TestedCell->GetState() != State::Unknown)
+			{
+				continue;
+			}
+
+			// if it is an unknown cell...
+			std::set<Cell*> NumberedNeighbors;
+
+			For_All_Valid_Neighbors(TestedCell,
+				[&NumberedNeighbors](Cell* NeighborCell) -> auto
+			{
+				//std::cout << NeighborCell->GetPosition() << endl;
+				if (static_cast<int>(NeighborCell->GetState()) > 0)
+				{
+					NumberedNeighbors.insert(NeighborCell);
+				}
+			});
+
+			if (NumberedNeighbors.size() > 1)
+			{
+				MarkBlack(TestedCell);
+			}
+		}
+	}
+}
+
+
+void Grid::MarkBlack(Cell* InCell)
+{
+	if (InCell->GetState() != State::Unknown)
+	{
+		throw std::logic_error("Trying to mark a cell black that is not set to unknown");
+	}
+
+	InCell->SetState(State::Black);
 }
 
 
