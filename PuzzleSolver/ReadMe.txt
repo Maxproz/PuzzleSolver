@@ -131,16 +131,6 @@ Get from bed to work
 // TODO: finish filtering these into tasks
 
 
-
-
-
-
-
-All white cells must eventually be part of exactly one island. If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
-	A function that checks if there is connected or not connected white cells that are not numbered yet.
-	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
-	A function that marks the sole connecting pathway as part of that numbered region
-
 Some puzzles will require the location of "unreachables"—cells that cannot be connected to any number, being either too far away from all of them or blocked by other numbers. Such cells must be black. Often, these cells will have only one route of connection to other black cells or will form an elbow whose required white cell (see previous bullet) can only reach one number, allowing further progress.
 	A function that tests for unreachable cells.
 		function that will create a sequence container(queue?) and push the current cell

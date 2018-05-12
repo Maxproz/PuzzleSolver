@@ -37,7 +37,7 @@ public:
 
 	Coordinate2D GetPosition() const { return m_GridPosition; }
 	State GetState() const { return m_State; }
-	Region& GetRegion() const; 
+	Region* GetRegion() const; 
 
 	void SetState(State NewState) { m_State = NewState; }
 	void SetRegion(Region* NewRegion);

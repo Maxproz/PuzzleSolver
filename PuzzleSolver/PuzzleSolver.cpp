@@ -86,32 +86,53 @@ int main()
 {
 	// Create our Grid and correctly initalize it.
 	Grid GameBoard(Width, Height, NumberedIslandCells);
-	GameBoard.PrintGrid(); // Working
+	
+	GameBoard.PrintGrid(); 
 
-	// we don't care how long it took to create our grid so we won't time it.
-	const long long start = counter();
-	// TODO: Make logic for solving something like 
-	// while (GameBoard.SolvePuzzle == Something..) so we can time how long it takes to solve, 
-	// Most likely we need a loop because to solve these puzzles means repeating some of the solving steps multiple times.
-	// It will know when it needs to stop when all cells are known(not unknown probably) 
-	// - so we will probably need a tracker variable for that, which shouldn't be that hard to put in.
-	GameBoard.SolvePuzzle();
-	const long long finish = counter();
+	try
+	{
+		// we don't care how long it took to create our grid so we won't time it.
+		const long long start = counter();
+		// TODO: Make logic for solving something like 
+		// while (GameBoard.SolvePuzzle == Something..) so we can time how long it takes to solve, 
+		// Most likely we need a loop because to solve these puzzles means repeating some of the solving steps multiple times.
+		// It will know when it needs to stop when all cells are known(not unknown probably) 
+		// - so we will probably need a tracker variable for that, which shouldn't be that hard to put in.
+		GameBoard.SolvePuzzle();
+		const long long finish = counter();
 
-	// Print how long it took to solve the puzzle
-	cout << "Puzzle Solve Time: " << ": " << format_time(start, finish) << ", " << endl << endl;
+		// Print how long it took to solve the puzzle
+		cout << "Puzzle Solve Time: " << ": " << format_time(start, finish) << ", " << endl << endl;
+	}
+	catch (std::exception ex)
+	{
+		std::cout << ex.what() << std::endl;
+	}
+
+	//	A function that checks if its still possible for all black cells to still be connected.
+	//		- iterate over all black cells, check all of its neighbors and make sure there is at least 1 unknown or 1 black cell 
+	//		  in its valid neighbors, this function should always return true, if it returns false...idk
+	//	A function that checks if there is an unknown cell that needs to be black to connect 2 black squares(that are diagional ? )
+	//		A function that marks an unknown cell white, then iterates over all of its valid neighbors passing a lambda,
+	//		- if the neighbor is a black cell, iterate over all of that cells neighbors and see if its possible to connect to 
+	//			another black
+
+	GameBoard.PrintGrid(); 
 
 
-	GameBoard.PrintGrid(); // Working
 
 	// This is debug code.. can be removed later.
-	//cout << endl;
-	//GameBoard.PrintAllCellsInAllRegions(); // Working
-	//cout << endl;
+	// TODO: This Debug Code should be more clear.  (50% done, still hard to read)
+	// - Are these regions white black etc.... 
+	// - Where are they, takes a long time to look for them using the coordinates.
 
-	//cout << endl;
-	//GameBoard.PrintAllUnknownsInAllRegions();
-	//cout << endl;
+	cout << endl;
+	GameBoard.PrintAllCellsInAllRegions(); // Working
+	cout << endl;
+
+	cout << endl;
+	GameBoard.PrintAllUnknownsInAllRegions();
+	cout << endl;
 
 	return 0;
 }

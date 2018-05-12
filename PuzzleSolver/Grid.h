@@ -71,22 +71,26 @@ private:
 	// Helper functions that were created for solving step 2 (can be reused if needed in other spots later)
 	std::set<Region*> GetAllNumberedRegions() const;
 	void UpdateCompleteRegions(std::set<Region*> InNumberedRegions);
-	void SetStateOfAllCellsInRegion(Region* InRegion, const State& InState);
+	void SetStateOfAllNeighborsToCellsInARegion(Region* InRegion, const State& InState);
 
 	// TODO: Figure out a better way to name these solving steps...
+	void SolveBlackHasToConnect();
+	bool BlackCellHasAtLeastOnePath(Cell* InBlackCell);
+
 	void SolveUpdateCompleteIslands();
 	void SolveCellsWithTwoAdjacentNumberedCells();
 	
-	// TODO: Figure out a more elegant way for handling a marking and verifying the desired mark of a cell (mark == black/white)
-	void MarkBlack(Cell* InCell);
+	void Mark(Cell* InCell, const State NewState);
 
 	void AddRegion(Cell* InCell);
+	void FuseRegions(Region* LHSRegion, Region* RHSRegion);
 
 	void swap(Grid& other);
 
 	Cell* operator()(const Coordinate2D& Pos);
 	const Cell* operator()(const Coordinate2D& Pos) const;
 
+	
 
 	// A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
 	// TODO: Is having 2 versions here really necessary
@@ -151,7 +155,7 @@ private:
 			}
 			else
 			{
-				return;
+				//return;
 			}
 		}
 
@@ -165,7 +169,7 @@ private:
 			}
 			else
 			{
-				return;
+				//return;
 			}
 		}
 
@@ -180,7 +184,7 @@ private:
 			}
 			else
 			{
-				return;
+				//return;
 			}
 		}
 
@@ -194,7 +198,7 @@ private:
 			}
 			else
 			{
-				return;
+				//return;
 			}
 		}
 

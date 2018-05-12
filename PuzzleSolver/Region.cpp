@@ -91,13 +91,4 @@ void Region::EraseUnknown(Cell * InUnknownCell)
 }
 
 
-// I don't really see a use for these yet. Maybe I will need them more later.
-//template <typename InIter>
-//void Insert(InIter first, InIter last)
-//{
-//	m_Cells.insert(first, last);
-//}
 
-//	template <typename InIt> void unk_insert(InIt first, InIt last) {
-//		m_unknowns.insert(first, last);
-//	}

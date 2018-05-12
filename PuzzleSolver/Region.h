@@ -50,6 +50,19 @@ public:
 	void EraseUnknown(Cell* InUnknownCell);
 
 
+	// We use these two functions when fusing two regions together
+	template <typename InIter>
+	void Insert(InIter first, InIter last)
+	{
+		m_Cells.insert(first, last);
+	}
+
+	template <typename InIt>
+	void UnknownsInsert(InIt first, InIt last)
+	{
+		m_Unknowns.insert(first, last);
+	}
+
 private:
 	std::set<Cell*> m_Unknowns;
 	std::set<Cell*> m_Cells; // The cells that make up this region.

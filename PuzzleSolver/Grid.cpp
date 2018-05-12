@@ -145,6 +145,8 @@ void Grid::AddRegion(Cell* InCell) // non-owning param
 
 
 
+
+
 Cell* Grid::operator()(const Coordinate2D& Pos)
 {
 	if (IsValid(Pos))
@@ -217,7 +219,22 @@ void Grid::PrintAllCellsInAllRegions() const
 	int RegionCounter = 1;
 	for (const auto& region : m_Regions)
 	{
-		std::cout << "Region " << RegionCounter << ": ";
+		if (region->IsBlack())
+		{
+			std::cout << "Black";
+		}
+		if (region->IsWhite())
+		{
+			std::cout << "White";
+		}
+		if (region->IsNumbered())
+		{
+			std::cout << "Numbered ";
+			auto RegionNumber = region->GetNumber();
+			cout << RegionNumber;
+		}
+		std::cout << " Region ";
+		std::cout << RegionCounter << ": " << endl;
 		for (auto beg = (*region).Begin(); beg != region->End(); ++beg)
 		{
 			cout << (*beg)->GetPosition() << endl;
@@ -261,13 +278,23 @@ void Grid::SolvePuzzle()
 	//		- Whenever three black cells form an "elbow"—an L - shape—the cell in the bend(diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
 	//			- A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
 
-	// TODO: Step 3
+
+	// Step 3
 	// All black cells must eventually be connected. If there is a black region with only one possible way to connect to the rest of the board, the sole connecting pathway must be black.
-	//	Corollary: there cannot be a continuous path, using either vertical, horizontal or diagonal steps, of white cells from one cell lying on the edge of the board to a different cell like that, that encloses some black cells inside, because otherwise, the black cells won't be connected.
-	//	A function that checks if all black cells are connected.
-	//	A function that checks if there is an unknown cell that needs to be black to connect 2 black squares(that are diagional ? )
-	//	A function that sets a cell that needs to be a connecting black square to black.
-	
+	SolveBlackHasToConnect();
+
+
+	// TODO: On hold until we have a white region not part of a numbered region
+	// All white cells must eventually be part of exactly one island.If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
+	//	A function that checks if there is connected or not connected white cells that are not numbered yet.
+	//	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
+	//	A function that marks the sole connecting pathway as part of that numbered region
+
+	// Step 4
+	// If marking an unknown cell white and forming a complete island which causes the adjacents to it to be black
+	// - makes it impossible for another island to have any possible pathways. That cell we marked white has to be black
+	// - Iterate over all cells, if its an unknown cell
+
 
 }
 
@@ -295,13 +322,13 @@ void Grid::UpdateCompleteRegions(set<Region*> InNumberedRegions)
 		{
 			// The numbered region is complete
 			// For each cell in the region mark all valid adjacent cells of the cell in that region black
-			SetStateOfAllCellsInRegion(Reg, State::Black);
+			SetStateOfAllNeighborsToCellsInARegion(Reg, State::Black);
 		}
 	}
 }
 
 
-void Grid::SetStateOfAllCellsInRegion(Region* InRegion, const State& InState)
+void Grid::SetStateOfAllNeighborsToCellsInARegion(Region* InRegion, const State& InState)
 {
 	if (InState == State::Black || InState == State::White)
 	{
@@ -312,7 +339,7 @@ void Grid::SetStateOfAllCellsInRegion(Region* InRegion, const State& InState)
 				For_All_Valid_Neighbors(CellInRegion,
 					[this](Cell* NeighborCell) -> auto
 				{
-					MarkBlack(NeighborCell);
+					Mark(NeighborCell, State::Black);
 				});
 			}
 		}
@@ -325,7 +352,69 @@ void Grid::SetStateOfAllCellsInRegion(Region* InRegion, const State& InState)
 	{
 		throw std::logic_error("Trying to set a state that is not black or white");
 	}
+}
 
+void Grid::SolveBlackHasToConnect()
+{
+	// TODO: There is some nice logic in here that I can use later for needing to test copies of a board
+	// - and nested neighbor testing
+
+	// For every cell on the board....
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto TestedCell = operator()(Coordinate2D(x, y));
+
+			// Make sure we are testing an unknown square
+			if (TestedCell->GetState() != State::Unknown)
+			{
+				continue;
+			}
+
+			// Create a copy of our Gameboard to test changing this unknown cell to a white square
+			Grid TempGameBoard(*this);
+			auto TempTestedCell = TempGameBoard.operator()(Coordinate2D(x, y));
+
+			TempGameBoard.Mark(TempTestedCell, State::White);
+
+
+			// Did marking this cell white make it so its neighbors couldn't connect?
+			TempGameBoard.For_All_Valid_Neighbors(TempTestedCell,
+				[this, &TempGameBoard, &TestedCell](Cell* NeighborCell) -> auto
+			{
+				if (NeighborCell->GetState() == State::Black)
+				{
+					auto HasPath = TempGameBoard.BlackCellHasAtLeastOnePath(NeighborCell);
+					if (HasPath == false)
+					{
+						this->Mark(TestedCell, State::Black);
+					}
+				}
+			});
+		}
+	}
+}
+
+bool Grid::BlackCellHasAtLeastOnePath(Cell* InBlackCell)
+{
+	bool HasAtLeastOnePossiblePathway = false;
+	set<Cell*> Pathways;
+
+	For_All_Valid_Neighbors(InBlackCell, [&Pathways](Cell* NeighborCell) -> auto						
+	{ 
+		if (NeighborCell->GetState() == State::Black || NeighborCell->GetState() == State::Unknown)
+		{
+			Pathways.insert(NeighborCell);
+		}
+	});
+
+	if (Pathways.size() == 0)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void Grid::SolveUpdateCompleteIslands()
@@ -363,23 +452,143 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 
 			if (NumberedNeighbors.size() > 1)
 			{
-				MarkBlack(TestedCell);
+				Mark(TestedCell, State::Black);
 			}
 		}
 	}
 }
 
 
-void Grid::MarkBlack(Cell* InCell)
+void Grid::Mark(Cell* InCell, const State NewState)
 {
 	if (InCell->GetState() != State::Unknown)
 	{
+		// TODO: This would be where I would return with contradiction found or something like that to our "solve" while loop
 		throw std::logic_error("Trying to mark a cell black that is not set to unknown");
 	}
 
-	InCell->SetState(State::Black);
+	if (NewState != State::Black && NewState != State::White)
+	{
+		throw std::logic_error("Error InCell is not black or white");
+	}
+
+	if (NewState == State::Black)
+	{
+		InCell->SetState(State::Black);
+	}
+	else if (NewState == State::White)
+	{
+		InCell->SetState(State::White);
+	}
+	else
+	{
+
+	}
+
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		(*i)->EraseUnknown(InCell);
+	}
+
+	//  Marking a cell as white or black could create an independent region,
+	//	could be added to an existing region, or could connect 2, 3, or 4 separate regions.
+	//	The easiest thing to do is to create a region for this cell,
+	//	and then fuse it to any adjacent compatible regions.
+	
+	AddRegion(InCell);
+	
+	//	Don't attempt to cache these regions.
+	//	Each fusion could change this cell's region or its neighbors' regions.
+
+	For_All_Valid_Neighbors(InCell, [this, &InCell](Cell* NeighborCell)
+	{
+		FuseRegions(InCell->GetRegion(), NeighborCell->GetRegion());
+	});
+
 }
 
+void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
+{
+	// If we don't have two different regions, we're done. Or one of our regions is nullptr
+	// - There would be no point in trying to fuse the same region
+	if (!LHSRegion || !RHSRegion || LHSRegion == RHSRegion)
+	{
+			return;
+	}
+
+	// If we're asked to fuse two numbered regions, we've encountered a contradiction.
+	// Remember this, so that solve() can report the contradiction.
+	//
+	//	if (r1->numbered() && r2->numbered()) {
+	//		m_sitrep = CONTRADICTION_FOUND;
+	//		return;
+	//	}
+	if (LHSRegion->IsNumbered() && RHSRegion->IsNumbered())
+	{
+		throw std::logic_error("Tried to fuse two numbered regions, Do I need to allow this for copied grid testin purposes?");
+	}
+
+	// A Black Region can't fuse with a non-black region
+	if (LHSRegion->IsBlack() != RHSRegion->IsBlack())
+	{
+		return;
+	}
+
+	// We'll use r1 as the "primary" region, to which r2's cells are added.
+	// It would be efficient to process as few cells as possible.
+	// Therefore, we'd like to use the bigger region as the primary region.
+	if (RHSRegion->RegionSize() > LHSRegion->RegionSize())
+	{
+		std::swap(LHSRegion, RHSRegion);
+	}
+
+	//	 However, if the secondary region is numbered, then the primary region
+	//	 must be white, so we need to swap them, even if the numbered region is smaller.
+	if (RHSRegion->IsNumbered()) 
+	{
+		std::swap(LHSRegion, RHSRegion);
+	}
+
+	// Fuse the secondary region into the primary region.
+	// A "Fuse" is "connecting" the cells in one region to another region.
+	// - And if we do that we need/can also add that regions unknown cells since they should be the same.
+	LHSRegion->Insert(RHSRegion->Begin(), RHSRegion->End());
+	LHSRegion->UnknownsInsert(RHSRegion->UnknownsBegin(), RHSRegion->UnknownsEnd());
+
+
+	// Update the secondary region's cells to point to the primary region.
+	for (std::set<Cell*>::iterator i = RHSRegion->Begin(); i != RHSRegion->End(); ++i)
+	{
+		(*i)->SetRegion(LHSRegion);
+		//region(i->first, i->second) = r1; 
+	}
+
+	// Erase the secondary region from the set of all regions.
+	// When this function returns, the secondary region will be destroyed.
+		
+	//m_regions.erase(r2);
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		if ((*i).get() == RHSRegion)
+		{
+			m_Regions.erase(i);
+			return;
+		}
+	}
+}
+
+
+//// Note that r1 and r2 are passed by modifiable value. It's convenient to be able to swap them.
+//void Grid::fuse_regions(shared_ptr<Region> r1, shared_ptr<Region> r2)
+// {
+//	// Fuse the secondary region into the primary region.
+//
+
+
+//
+
+// // as of right now, the shared_ptr count for r2 is 1 (scope of r2 in this function)
+//} // as of right now, the shared_ptr count for r2 is 0 (region pointed to by r2 deleted on the heap)
 
 // A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
 bool Grid::IsValid(Coordinate2D Cord) const
