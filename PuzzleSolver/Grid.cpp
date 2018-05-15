@@ -291,6 +291,11 @@ void Grid::SolvePuzzle()
 	//	A function that marks the sole connecting pathway as part of that numbered region
 
 	
+	// TODO: On hold, function to test if completing an island by marking a cell white will make it impossible for another 
+	// - island to complete itself.
+
+
+	// NEXT: Grab a note from ReadMe.txt
 
 }
 

@@ -121,18 +121,21 @@ int main()
 
 
 
+
+
+
 	// This is debug code.. can be removed later.
 	// TODO: This Debug Code should be more clear.  (50% done, still hard to read)
 	// - Are these regions white black etc.... 
 	// - Where are they, takes a long time to look for them using the coordinates.
 
-	cout << endl;
-	GameBoard.PrintAllCellsInAllRegions(); // Working
-	cout << endl;
+	//cout << endl;
+	//GameBoard.PrintAllCellsInAllRegions(); // Working
+	//cout << endl;
 
-	cout << endl;
-	GameBoard.PrintAllUnknownsInAllRegions();
-	cout << endl;
+	//cout << endl;
+	//GameBoard.PrintAllUnknownsInAllRegions();
+	//cout << endl;
 
 	return 0;
 }
