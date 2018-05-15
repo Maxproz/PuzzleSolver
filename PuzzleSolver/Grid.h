@@ -80,6 +80,9 @@ private:
 	void SolveUpdateCompleteIslands();
 	void SolveCellsWithTwoAdjacentNumberedCells();
 	
+	void SolveStepFourPlaceHolderName();
+
+
 	void Mark(Cell* InCell, const State NewState);
 
 	void AddRegion(Cell* InCell);
