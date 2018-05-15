@@ -290,136 +290,10 @@ void Grid::SolvePuzzle()
 	//	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
 	//	A function that marks the sole connecting pathway as part of that numbered region
 
-	// Step 4
-	// If marking an unknown cell white and forming a complete island which causes the adjacents to it to be black
-	// - makes it impossible for another island to have any possible pathways. That cell we marked white has to be black
-	// - Iterate over all regions, 
-	// - find numbered regions of size 2 that have 2 unknowns 
-	// - make a copy of the gameboard and test both of those unknown cells by marking it white (which makes a region and merges).
-	// - iterate over the gameboard copy.
-	// - if marking any of those cells white caused another numbered region to be unable to be competed then that cell is really black.
-	SolveStepFourPlaceHolderName();
+	
 
 }
 
-void Grid::SolveStepFourPlaceHolderName()
-{
-	auto Regions = GetAllNumberedRegions();
-
-	set<Region*> SizeTwoRegionsWithTwoUnknowns;
-
-	for (auto& Region : Regions)
-	{
-		if (Region->GetNumber() == 2 && Region->UnknownsSize() == 2)
-			SizeTwoRegionsWithTwoUnknowns.insert(Region);
-	}
-
-	std::cout << SizeTwoRegionsWithTwoUnknowns.size() << endl;
-
-	if (SizeTwoRegionsWithTwoUnknowns.size() == 0)
-		return;
-
-
-	auto CoordinatesToMark = set<Cell*>{};
-
-	// For each Region of size two that has two unknowns
-	for (auto& RegionToTest : SizeTwoRegionsWithTwoUnknowns)
-	{
-		// Test each cell in that region by marking it white and completing the island, and see if that causes any other islands to be 
-		// - uncompletable
-		for (auto& UnknownCellToTest = RegionToTest->UnknownsBegin(); UnknownCellToTest != RegionToTest->UnknownsEnd(); ++UnknownCellToTest)
-		{
-			// Make a copy of the gameboard that we will reconstruct after testing each cell
-			Grid GameBoardCopy(*this);
-
-			// Test the current unknown cell by marking it white (which will merge 
-			GameBoardCopy.Mark(GameBoardCopy.operator()(((*UnknownCellToTest)->GetPosition())), State::White);
-
-			// Since this function is testing size 2, when we mark white it will be complete, so update.
-			//GameBoardCopy.SolveUpdateCompleteIslands();
-			auto CellsInRegion = RegionToTest->GetCellsInRegion();
-			
-			for (auto& CellInRegion = CellsInRegion.begin(); CellInRegion != CellsInRegion.end(); ++CellInRegion)
-			{
-				GameBoardCopy.For_All_Valid_Neighbors(GameBoardCopy.operator()((*CellInRegion)->GetPosition()),
-					[&GameBoardCopy, &UnknownCellToTest](Cell* NeighborCell) -> auto
-				{
-					//GameBoardCopy.operator()(Coordinate2D(NeighborCell->GetPosition()))->SetState(State::Unknown);
-					GameBoardCopy.Mark(NeighborCell, State::Black);
-
-					for (auto i = GameBoardCopy.m_Regions.begin(); i != GameBoardCopy.m_Regions.end(); ++i)
-					{
-						(*i)->EraseUnknown((GameBoardCopy.operator()((*UnknownCellToTest)->GetPosition())));
-					}
-
-					//  Marking a cell as white or black could create an independent region,
-					//	could be added to an existing region, or could connect 2, 3, or 4 separate regions.
-					//	The easiest thing to do is to create a region for this cell,
-					//	and then fuse it to any adjacent compatible regions.
-
-					GameBoardCopy.AddRegion(*UnknownCellToTest);
-
-					//	Don't attempt to cache these regions.
-					//	Each fusion could change this cell's region or its neighbors' regions.
-
-					GameBoardCopy.For_All_Valid_Neighbors(*UnknownCellToTest, [&GameBoardCopy, &UnknownCellToTest](Cell* NeighborCell)
-					{
-						GameBoardCopy.FuseRegions((*UnknownCellToTest)->GetRegion(), NeighborCell->GetRegion());
-					});
-
-				});
-			}
-
-
-			// Now iterate over all numbered regions again.
-			auto GameBoardCopyRegions = GameBoardCopy.GetAllNumberedRegions();
-			//GameBoardCopy.UpdateCompleteRegions(GameBoardCopyRegions);
-			//GameBoardCopy.SetStateOfAllNeighborsToCellsInARegion(RegionToTest, State::Black);
-
-			GameBoardCopy.PrintGrid();
-
-			for (auto& RegionIter = GameBoardCopyRegions.begin(); RegionIter != GameBoardCopyRegions.end(); ++RegionIter)
-			{
-				// If its numbered
-				if ((*RegionIter)->IsNumbered())
-				{
-					// Check if its unknowns == 0
-					cout << (*RegionIter)->UnknownsSize() << endl;
-
-					if ((*RegionIter)->UnknownsSize() == 0 && (*RegionIter)->RegionSize() < (*RegionIter)->GetNumber())
-					{
-						CoordinatesToMark.insert(*UnknownCellToTest);
-
-						//// check if its complete
-						//if ((*RegionIter)->RegionSize() == (*RegionIter)->GetNumber())
-						//{
-						//	// If its complete just continue 
-						//	//continue;
-						//	std::cout << " Test " << endl;
-						//}
-						//else
-						//{
-						//	// if its unknowns is == 0 and its not complete....
-						//	// Then the cell we origionally marked white has to be black...
-						//	//this->Mark((*CellToTest), State::Black);
-						//	//break;
-						//	//Mark((*CellToTest), State::Black);
-						//	CoordinatesToMark.insert(*UnknownCellToTest);
-						//}
-					}
-				}
-			}
-		}
-	}
-	cout << "To mark black size: " << CoordinatesToMark.size() << endl;
-
-
-	for (auto& CellToMark : CoordinatesToMark)
-	{
-		Mark(CellToMark, State::Black);
-	}
-
-}
 
 set<Region*> Grid::GetAllNumberedRegions() const
 {
@@ -589,9 +463,9 @@ void Grid::Mark(Cell* InCell, const State NewState)
 	if (InCell->GetState() != State::Unknown)
 	{
 		// TODO: This would be where I would return with contradiction found or something like that to our "solve" while loop
-		std::cout << InCell->GetPosition() << endl;
-		return;
-		//throw std::logic_error("Trying to mark a cell black that is not set to unknown");
+		//std::cout << InCell->GetPosition() << endl;
+		//return;
+		throw std::logic_error("Trying to mark a cell black that is not set to unknown");
 	}
 
 	if (NewState != State::Black && NewState != State::White)
