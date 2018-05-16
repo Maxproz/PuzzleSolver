@@ -284,7 +284,7 @@ void Grid::SolvePuzzle()
 	SolveBlackHasToConnect();
 
 
-	// TODO: On hold until we have a white region not part of a numbered region
+	// TODO: SOON: On hold until we have a white region not part of a numbered region
 	// All white cells must eventually be part of exactly one island.If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
 	//	A function that checks if there is connected or not connected white cells that are not numbered yet.
 	//	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
@@ -293,11 +293,207 @@ void Grid::SolvePuzzle()
 	
 	// TODO: On hold, function to test if completing an island by marking a cell white will make it impossible for another 
 	// - island to complete itself.
+	
 
 
-	// NEXT: Grab a note from ReadMe.txt
+	//  (DONE) Implement the code that will check for cells (mainly numbered) that have only 1 possible path to expand, and mark 
+	// - that cell white, which should fuse regions and update the grid etc..=
+	SolveExpandPartialNumberedRegionsWithOnePath();
+
+	// (DONE) Hmm before SolveStepFour is called, we need to implement the check for creating an "impossibly big white region"
+	SolveStepFourUnreachableCells();
+
+
+	// TODO: Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
+
+
+
+	
+}
+
+#include <algorithm>
+bool Grid::Impossibly_big_white_region(const int N) const
+{
+	auto Regions = std::set<Region*>{};
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		Regions.insert((*i).get());
+	}
+
+		return none_of(Regions.begin(), Regions.end(),
+			[N](auto PtrToRegion) 
+		{
+			// Add one because a bridge would be needed.
+			return PtrToRegion->IsNumbered() && PtrToRegion->RegionSize() + N + 1 <= PtrToRegion->GetNumber();
+		});
+
+	return false;
+}
+
+void Grid::SolveExpandPartialNumberedRegionsWithOnePath()
+{
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+
+			if (CurrentCell->GetState() != State::Unknown)
+			{
+				auto CellRegion = CurrentCell->GetRegion();
+				if (CellRegion->IsNumbered())
+				{
+					if (CellRegion->GetCellsInRegion().size() < CellRegion->GetNumber())
+					{
+						if (CellRegion->GetUnknownsAroundRegion().size() == 1)
+						{
+							Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::White);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void Grid::SolveStepFourUnreachableCells()
+{
+	set<Cell*> Mark_as_black;
+	set<Cell*> Mark_as_white;
+
+	for (int x = 0; x < m_Width; ++x) 
+	{
+		for (int y = 0; y < m_Height; ++y) 
+		{
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+			if (Unreachable(CurrentCell))
+			{
+				Mark_as_black.insert(CurrentCell);
+			}
+		}
+	}
+	
+	for (auto i = Mark_as_black.begin(); i != Mark_as_black.end(); ++i)
+	{
+		Mark((*i), State::Black);
+	}
+
+	
+	// Should this be called here, just to make sure it happens?
+	//SolveUpdateCompleteIslands();
+
+		//if (process(verbose, mark_as_black, mark_as_white, "Unreachable cells blackened.")) {
+		//	return m_sitrep;
+		//}
+}
+
+#include <queue>
+
+bool Grid::Unreachable(Cell* InCell, set<Cell*> discovered) 
+{
+	// We're interested in unknown cells.
+	
+	if (InCell->GetState() != State::Unknown)
+	{
+		return false;
+	}
+	
+	// See http://en.wikipedia.org/wiki/Breadth-first_search
+	
+	std::queue<pair<Cell*, int>> q;
+	
+	q.push(make_pair(InCell, 1));
+	discovered.insert(InCell);
+	
+	while (!q.empty())
+	{
+		const int x_curr = q.front().first->GetPosition().GetX();
+		const int y_curr = q.front().first->GetPosition().GetY();
+		const int n_curr = q.front().second;
+
+		q.pop();
+
+		set<Region*> White_regions;
+		set<Region*> Numbered_regions;
+
+		For_All_Valid_Neighbors(operator()(Coordinate2D(x_curr, y_curr)), [&](Cell* NeighborCell)
+		{
+			Region* r = NeighborCell->GetRegion();
+
+			if (r && r->IsWhite())
+			{
+				White_regions.insert(r);
+			}
+			else if (r && r->IsNumbered())
+			{
+				Numbered_regions.insert(r);
+			}
+		});
+
+		int size = 0;
+
+		for (auto i = White_regions.begin(); i != White_regions.end(); ++i)
+		{
+			size += (*i)->RegionSize();
+		}
+
+		for (auto i = Numbered_regions.begin(); i != Numbered_regions.end(); ++i)
+		{
+			size += (*i)->RegionSize();
+		}
+
+		if (Numbered_regions.size() > 1)
+		{
+			continue;
+		}
+		//
+		if (Numbered_regions.size() == 1)
+		{
+			const int num = (*Numbered_regions.begin())->GetNumber();
+
+			if (n_curr + size <= num)
+			{
+				return false;
+			}
+			else
+			{
+				continue;
+			}
+		}
+		
+		if (!White_regions.empty())
+		{
+			cout << "White regions is not empty but cant test for impossibly big regions yet" << endl;
+			// TODO: Implement a test for this
+
+			if (Impossibly_big_white_region(n_curr + size))
+			{
+				cout << "Impossibly big white region, continuing";
+				continue;
+			}
+			else 
+			{
+				return false;
+			}
+		}
+
+		For_All_Valid_Neighbors(operator()(Coordinate2D(x_curr, y_curr)),
+			[&](Cell* NeighborCell)
+		{
+			if (NeighborCell->GetState() == State::Unknown && discovered.insert(NeighborCell).second)
+			{
+				//std::cout << "Test";
+				q.push(make_pair(NeighborCell, n_curr + 1));
+			}
+		});
+
+	}
+	
+	return true;
 
 }
+
 
 
 set<Region*> Grid::GetAllNumberedRegions() const
@@ -459,6 +655,8 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 		}
 	}
 }
+
+
 
 
 

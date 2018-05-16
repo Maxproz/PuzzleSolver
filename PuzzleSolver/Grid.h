@@ -80,7 +80,11 @@ private:
 	void SolveUpdateCompleteIslands();
 	void SolveCellsWithTwoAdjacentNumberedCells();
 	
-	void SolveStepFourPlaceHolderName();
+	void SolveStepFourUnreachableCells();
+	bool Unreachable(Cell* InCell, std::set<Cell*> discovered = std::set<Cell*>());
+	bool Impossibly_big_white_region(const int N) const;
+
+	void SolveExpandPartialNumberedRegionsWithOnePath();
 
 
 	void Mark(Cell* InCell, const State NewState);
