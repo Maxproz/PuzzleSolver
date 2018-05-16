@@ -306,11 +306,32 @@ void Grid::SolvePuzzle()
 	SolveStepFourUnreachableCells();
 
 
-	// TODO: Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
+	// (DONE): Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
 	SolveCheckFor2x2Pools();
 
-
 	
+	// NEXT: 
+	//		If an island of size N already has N-1 white cells identified, and there are only two remaining cells to choose from, and those two cells touch at their corners, then the cell between those two that is on the far side of the island must be black.	
+	//			function to test (If an island of size N already has N-1 white cells identified) ~ bool function(Island)
+	//			function that takes a coordinate pair and a functor and runs the functor on all valid neighbors
+	//				function for determinting what a valid neighbor is to a coordinate pair.
+	//			function that can iterate over the collection of coordinate pairs of an island that calls 
+	//			function that determines if an island only has two possible cells left to choose from and only needs one more cell.
+	//			function that determines if two cells touch at their corners. (diagional to eachother)
+	//			function that will mark the cell that is between two diagional cells as black
+	//		A function that tests if only two islands can connect to a white cell.
+	//		A function that tests if an island will have no unidentified cells left after connecting to a white cell.
+	//		A function that sets a white cell to an island cell (when a numbered cell connects to a white cell)
+	//		A function that tests if two islands would connect to the same white cell at a 90 degree angle
+	//      A function that sets an unknown cell that is diagionally between two islands to black.
+	SolveStepFiveNSizeTwoChoices();
+}
+
+void Grid::SolveStepFiveNSizeTwoChoices()
+{
+	// TODO: Implement:
+
+
 }
 
 void Grid::SolveCheckFor2x2Pools()
@@ -329,7 +350,6 @@ void Grid::SolveCheckFor2x2Pools()
 
 			if (CurrentCell->GetState() == State::Black)
 			{
-				//Blacks.insert(CurrentCell);
 				CellsInSquare.insert(CurrentCell);
 
 				auto RightCell = operator()(Coordinate2D(x + 1, y));
@@ -376,6 +396,8 @@ void Grid::SolveCheckFor2x2Pools()
 	}
 	SolveUpdateCompleteIslands();
 }
+
+
 
 bool Grid::Impossibly_big_white_region(const int N) const
 {

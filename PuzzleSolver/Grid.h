@@ -88,6 +88,7 @@ private:
 
 	void SolveCheckFor2x2Pools();
 
+	void SolveStepFiveNSizeTwoChoices();
 
 	void Mark(Cell* InCell, const State NewState);
 
