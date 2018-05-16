@@ -312,7 +312,7 @@ void Grid::SolvePuzzle()
 	
 	// NEXT: 
 	//		If an island of size N already has N-1 white cells identified, and there are only two remaining cells to choose from, and those two cells touch at their corners, then the cell between those two that is on the far side of the island must be black.	
-	//			function to test (If an island of size N already has N-1 white cells identified) ~ bool function(Island)
+	//			(DONE) function to test (If an island of size N already has N-1 white cells identified) ~ bool function(Island)
 	//			function that takes a coordinate pair and a functor and runs the functor on all valid neighbors
 	//				function for determinting what a valid neighbor is to a coordinate pair.
 	//			function that can iterate over the collection of coordinate pairs of an island that calls 
@@ -325,13 +325,86 @@ void Grid::SolvePuzzle()
 	//		A function that tests if two islands would connect to the same white cell at a 90 degree angle
 	//      A function that sets an unknown cell that is diagionally between two islands to black.
 	SolveStepFiveNSizeTwoChoices();
+
+
 }
 
 void Grid::SolveStepFiveNSizeTwoChoices()
 {
 	// TODO: Implement:
 
+	// Iterate over all numbered regions
+	// Find all numbered regions of Size N that have N - 1 identified 
+	auto Regions = std::set<Region*>{};
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		Regions.insert((*i).get());
+	}
+	
+	auto RegionsToTest = set<Region*>{};
+	for (auto i = Regions.begin(); i != Regions.end(); ++i)
+	{
+		if ((*i)->IsNumbered())
+		{
+			auto RegionNumber = (*i)->GetNumber();
 
+			if ((*i)->RegionSize() == RegionNumber - 1)
+			{
+				RegionsToTest.insert(*i);
+			}
+		}
+	}
+
+	// Now that we have the Numbered Regions we want to test, we also need to check if there is only two unknowns in the regions.
+	for (auto i = Regions.begin(); i != Regions.end(); ++i)
+	{
+		if ((*i)->UnknownsSize() != 2)
+		{
+			RegionsToTest.erase(*i);
+		}
+	}
+
+
+
+	// Now we have narrowed down our options even more.
+	// Next we want to iterate over the regions we have left
+	// for each region, we want to test if the two unknowns in the region touch at the corners
+	// Now that we have the Numbered Regions we want to test, we also need to check if there is only two unknowns in the regions.
+	for (auto i = RegionsToTest.begin(); i != RegionsToTest.end(); ++i)
+	{
+		auto UnknownCellsAroundReg = std::vector<Cell*>{};
+		UnknownCellsAroundReg.reserve(100);
+
+		auto UnknownCellsSet = (*i)->GetUnknownsAroundRegion();
+
+		for (auto i = UnknownCellsSet.begin(); i != UnknownCellsSet.end(); ++i)
+		{
+			UnknownCellsAroundReg.push_back(*i);
+		}
+
+
+		auto FirstUnknownCell = UnknownCellsAroundReg[0];
+		auto SecondUnknownCell = UnknownCellsAroundReg[1];
+		
+		Coordinate2D TopRight = Coordinate2D((FirstUnknownCell)->GetPosition().GetX() + 1, (FirstUnknownCell)->GetPosition().GetY() - 1);
+		Coordinate2D BottomRight = Coordinate2D((FirstUnknownCell)->GetPosition().GetX() + 1, (FirstUnknownCell)->GetPosition().GetY() + 1);
+		Coordinate2D BottomLeft = Coordinate2D((FirstUnknownCell)->GetPosition().GetX() - 1, (FirstUnknownCell)->GetPosition().GetY() + 1);
+		Coordinate2D TopLeft = Coordinate2D((FirstUnknownCell)->GetPosition().GetX() - 1, (FirstUnknownCell)->GetPosition().GetY() - 1);
+
+		if ((SecondUnknownCell)->GetPosition() == TopRight ||
+			(SecondUnknownCell)->GetPosition() == BottomRight ||
+			(SecondUnknownCell)->GetPosition() == BottomLeft ||
+			(SecondUnknownCell)->GetPosition() == TopLeft)
+		{
+			std::cout << "Two Unknowns Touch at corners" << endl;
+			std::cout << *FirstUnknownCell << endl;
+			std::cout << *SecondUnknownCell << endl;
+
+			// TODO: How do I figure out the cell between these two cells coordinates so I can mark it black if its not already black?
+		}
+
+		
+	}
 }
 
 void Grid::SolveCheckFor2x2Pools()
@@ -365,7 +438,7 @@ void Grid::SolveCheckFor2x2Pools()
 				CellsInSquare.insert(BottomCell);
 
 
-				std::cout << "CellInSquare size " << CellsInSquare.size() << endl;
+				//std::cout << "CellInSquare size " << CellsInSquare.size() << endl;
 
 				for (auto i = CellsInSquare.begin(); i != CellsInSquare.end(); ++i)
 				{

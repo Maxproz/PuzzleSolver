@@ -117,7 +117,6 @@ Get from bed to work
 //	What are some things I need to do to solve a nurikabe puzzle
 
 //	Make sure there is only one numbered cell in an island (set of connected white cells)
-//  Make sure there is no pools (2x2 black cells)
 //	Keep connected cells (coordinate pairs) black/white in a set (so coordinate pairs are unique)
 //	Make logic for a way to test if marking a cell a color will force another cell to be a color.
 //		Create a copy (temp) of the board in that function and use that to test 
@@ -147,19 +146,7 @@ Some puzzles will require the location of "unreachables"—cells that cannot be co
 			- Funtion that will run a test on the current cell we are looking at that will check if there are 2 nearby
 				different numbered regions (connected cells)
 
-//		If an island of size N already has N-1 white cells identified, and there are only two remaining cells to choose from, and those two cells touch at their corners, then the cell between those two that is on the far side of the island must be black.	
-//			function to test (If an island of size N already has N-1 white cells identified) ~ bool function(Island)
-//			function that takes a coordinate pair and a functor and runs the functor on all valid neighbors
-//				function for determinting what a valid neighbor is to a coordinate pair.
-//			function that can iterate over the collection of coordinate pairs of an island that calls 
-//			function that determines if an island only has two possible cells left to choose from and only needs one more cell.
-//			function that determines if two cells touch at their corners. (diagional to eachother)
-//			function that will mark the cell that is between two diagional cells as black
-//		A function that tests if only two islands can connect to a white cell.
-//		A function that tests if an island will have no unidentified cells left after connecting to a white cell.
-//		A function that sets a white cell to an island cell (when a numbered cell connects to a white cell)
-//		A function that tests if two islands would connect to the same white cell at a 90 degree angle
-//      A function that sets an unknown cell that is diagionally between two islands to black.
+
 
 
 /* Figure out how to test this condition 
