@@ -2,6 +2,8 @@
 #include "Grid.h"
 
 #include <iostream>
+#include <algorithm> // for std::none_of
+#include <queue>	// for the queue used in the unreachable() function
 
 #include "Cell.h"
 #include "Region.h"
@@ -305,13 +307,76 @@ void Grid::SolvePuzzle()
 
 
 	// TODO: Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
-
+	SolveCheckFor2x2Pools();
 
 
 	
 }
 
-#include <algorithm>
+void Grid::SolveCheckFor2x2Pools()
+{
+	// Start at the top left and move down and to the right looking for black cells.
+	// if the cell is black test the other 3 in the square to see if 2 of them are black and one is unknown.
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+
+			set<Cell*> Blacks;
+			set<Cell*> Unknown;
+			set<Cell*> CellsInSquare;
+
+			if (CurrentCell->GetState() == State::Black)
+			{
+				//Blacks.insert(CurrentCell);
+				CellsInSquare.insert(CurrentCell);
+
+				auto RightCell = operator()(Coordinate2D(x + 1, y));
+				if (!RightCell) continue;
+				CellsInSquare.insert(RightCell);
+
+				auto BottomRightCell = operator()(Coordinate2D(x + 1, y + 1));
+				if (!BottomRightCell) continue;
+				CellsInSquare.insert(BottomRightCell);
+
+				auto BottomCell = operator()(Coordinate2D(x, y + 1));
+				if (!BottomCell) continue;
+				CellsInSquare.insert(BottomCell);
+
+
+				std::cout << "CellInSquare size " << CellsInSquare.size() << endl;
+
+				for (auto i = CellsInSquare.begin(); i != CellsInSquare.end(); ++i)
+				{
+					if ((*i)->GetState() == State::Black)
+					{
+						Blacks.insert(*i);
+					}
+					
+
+					if ((*i)->GetState() == State::Unknown)
+					{
+						Unknown.insert(*i);
+					}
+				}
+			}
+			else
+			{
+				continue;
+			}
+
+			//std::cout << Blacks.size() << endl;
+			//cout << Unknown.size() << endl;
+			if (Blacks.size() == 3 && Unknown.size() == 1)
+			{
+				Mark((*Unknown.begin()), State::White);
+			}
+		}
+	}
+	SolveUpdateCompleteIslands();
+}
+
 bool Grid::Impossibly_big_white_region(const int N) const
 {
 	auto Regions = std::set<Region*>{};
@@ -357,6 +422,8 @@ void Grid::SolveExpandPartialNumberedRegionsWithOnePath()
 }
 
 
+
+
 void Grid::SolveStepFourUnreachableCells()
 {
 	set<Cell*> Mark_as_black;
@@ -388,7 +455,7 @@ void Grid::SolveStepFourUnreachableCells()
 		//}
 }
 
-#include <queue>
+
 
 bool Grid::Unreachable(Cell* InCell, set<Cell*> discovered) 
 {
@@ -520,13 +587,13 @@ void Grid::UpdateCompleteRegions(set<Region*> InNumberedRegions)
 		{
 			// The numbered region is complete
 			// For each cell in the region mark all valid adjacent cells of the cell in that region black
-			SetStateOfAllNeighborsToCellsInARegion(Reg, State::Black);
+			SetStateOfAllUnknownNeighborsToCellsInARegion(Reg, State::Black);
 		}
 	}
 }
 
 
-void Grid::SetStateOfAllNeighborsToCellsInARegion(Region* InRegion, const State& InState)
+void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState)
 {
 	if (InState == State::Black || InState == State::White)
 	{
@@ -534,7 +601,7 @@ void Grid::SetStateOfAllNeighborsToCellsInARegion(Region* InRegion, const State&
 		{
 			for (auto& CellInRegion : InRegion->GetCellsInRegion())
 			{
-				For_All_Valid_Neighbors(CellInRegion,
+				For_All_Valid_Unknown_Neighbors(CellInRegion,
 					[this](Cell* NeighborCell) -> auto
 				{
 					Mark(NeighborCell, State::Black);
@@ -658,7 +725,7 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 
 
 
-
+#include <string>
 
 
 void Grid::Mark(Cell* InCell, const State NewState)
@@ -668,7 +735,8 @@ void Grid::Mark(Cell* InCell, const State NewState)
 		// TODO: This would be where I would return with contradiction found or something like that to our "solve" while loop
 		//std::cout << InCell->GetPosition() << endl;
 		//return;
-		throw std::logic_error("Trying to mark a cell black that is not set to unknown");
+		throw std::logic_error("Trying to mark a cell black that is not set to unknown " + std::to_string(InCell->GetPosition().GetX()) + 
+			+ ", " + std::to_string(InCell->GetPosition().GetY()));
 	}
 
 	if (NewState != State::Black && NewState != State::White)

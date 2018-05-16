@@ -42,11 +42,14 @@ public:
 	void SetState(State NewState) { m_State = NewState; }
 	void SetRegion(Region* NewRegion);
 
+	friend std::ostream& operator<<(std::ostream& os, const Cell& RHS);
+
 private:
 	Coordinate2D m_GridPosition{ 0, 0 };
 	State m_State{ State::Unknown };
 	Region* m_Region{ nullptr }; // The region that this cell is apart of. (Will be nullptr for an unknown cell)
-
 };
+
+std::ostream& operator<<(std::ostream& os, const Cell& RHS);
 
 #endif // !Cell_H

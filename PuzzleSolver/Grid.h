@@ -71,7 +71,7 @@ private:
 	// Helper functions that were created for solving step 2 (can be reused if needed in other spots later)
 	std::set<Region*> GetAllNumberedRegions() const;
 	void UpdateCompleteRegions(std::set<Region*> InNumberedRegions);
-	void SetStateOfAllNeighborsToCellsInARegion(Region* InRegion, const State& InState);
+	void SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState);
 
 	// TODO: Figure out a better way to name these solving steps...
 	void SolveBlackHasToConnect();
@@ -86,6 +86,8 @@ private:
 
 	void SolveExpandPartialNumberedRegionsWithOnePath();
 
+	void SolveCheckFor2x2Pools();
+
 
 	void Mark(Cell* InCell, const State NewState);
 
@@ -96,7 +98,6 @@ private:
 
 	Cell* operator()(const Coordinate2D& Pos);
 	const Cell* operator()(const Coordinate2D& Pos) const;
-
 	
 
 	// A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
