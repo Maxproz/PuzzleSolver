@@ -70,7 +70,7 @@ private:
 
 	// Helper functions that were created for solving step 2 (can be reused if needed in other spots later)
 	std::set<Region*> GetAllNumberedRegions() const;
-	void UpdateCompleteRegions(std::set<Region*> InNumberedRegions);
+	void UpdateCompleteRegions(std::set<Region*>& InNumberedRegions);
 	void SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState);
 
 	// TODO: Figure out a better way to name these solving steps...
@@ -89,6 +89,12 @@ private:
 	void SolveCheckFor2x2Pools();
 
 	void SolveStepFiveNSizeTwoChoices();
+
+	// Added a bunch a logic that really hasn't been useful yet here.
+	bool DoesMarkBlackCreateAPool(Cell* InCell);
+
+	void SolvePartialWhiteRegionsWithOnlyOnePath();
+	void SolvePartialBlackRegionsWithOnlyOnePath();
 
 	void Mark(Cell* InCell, const State NewState);
 
