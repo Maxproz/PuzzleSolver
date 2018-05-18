@@ -10,8 +10,10 @@
 #include <vector> // Used as a data member
 #include <memory> // Used as a data member
 #include <set>
+#include <map>
 
 #include "Region.h" // would need to use pimpl to remove header
+
 
 class Coordinate2D; // need name for function parameters
 
@@ -96,7 +98,23 @@ private:
 	void SolvePartialWhiteRegionsWithOnlyOnePath();
 	void SolvePartialBlackRegionsWithOnlyOnePath();
 
-	void SolveDoesWhiteExpandMakeUnconnectableRegion();
+	//void SolveDoesWhiteExpandMakeUnconnectableRegion();
+	void SolvePreventPoolsTwoBlackTwoUnknown();
+
+	void SolveConfinementAnalysis();
+	bool Confined(Region* r,
+		std::map<Region*, std::set<Cell*>>& cache,
+		const std::set<Cell*>& forbidden = std::set<Cell*>());
+	
+	std::string DetectContradictions(std::map<Region*, std::set<Cell*>>& Cache);
+	
+	
+	void SolveIsolatedUnknownCells();
+
+
+	void SolveGuessingRemaining();
+
+
 
 	void Mark(Cell* InCell, const State NewState);
 
@@ -221,12 +239,13 @@ private:
 
 	}
 
-
+	std::map<Region*, std::set<Cell*>> m_Cache;
 
 private:
 	int m_Width{ 0 };
 	int m_Height{ 0 };
-
+	
+	int m_total_black{ 0 };
 
 	// TODO: m_cells should be allocated in the constructor of grid.
 	std::vector<std::vector<std::unique_ptr<Cell > > > m_Cells;

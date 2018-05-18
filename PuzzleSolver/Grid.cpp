@@ -5,7 +5,7 @@
 #include <algorithm> // for std::none_of
 #include <queue>	// for the queue used in the unreachable() function
 #include <string>  // std::to_string
-
+#include <array> // for the array we use in SolvePreventPoolsTwoBlackTwoUnknown
 
 #include "Cell.h"
 #include "Region.h"
@@ -17,7 +17,7 @@ using namespace std;
 
 
 Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> NumberedCellLocations) :
-	m_Width{ Width }, m_Height{ Height }, m_Cells(), m_Regions()
+	m_Width{ Width }, m_Height{ Height }, m_Cells(), m_Regions(), m_total_black(Width * Height)
 {
 	// Validate width and height.
 	if (Width < 1) { throw runtime_error("RUNTIME ERROR: Grid::Grid() - width must be at least 1."); }
@@ -59,6 +59,14 @@ Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> Numb
 					
 					// If This is changing off of unknown, we need to also create a region for it.
 					AddRegion(m_Cells[x][y].get());
+
+					//				// m_total_black is width * height - (sum of all numbered cells).
+					//				// Calculating this allows us to determine whether black regions
+					//				// are partial or complete with a simple size test.
+					//				// Humans are capable of this but it's not convenient for them.
+					//				// We will show the meatbags that silicon is the superior element!
+					//
+					m_total_black -= Island.second;
 				}
 			}
 		}
@@ -375,9 +383,622 @@ void Grid::SolvePuzzle()
 
 
 	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	SolvePreventPoolsTwoBlackTwoUnknown();
+
+
+	SolveStepFourUnreachableCells();
+
+	
+	// The last two functions I should realisticly need are "confinment analysis" and a "guessing" function
+	// Attempted to solve the confinment analysis one myself, and failed so I will just need to copypasta, convert, and study existing code
+	
+	const string s = DetectContradictions(m_Cache);
+	if (!s.empty())
+	{
+		cout << s << endl;
+	}
+
+	 SolveConfinementAnalysis();
+	// uses Confined(); member func
+	 SolveExpandPartialNumberedRegionsWithOnePath();
+	 SolveUpdateCompleteIslands();
+	
+	 
+	 SolveExpandPartialNumberedRegionsWithOnePath();
+	 SolveUpdateCompleteIslands();
+	 
+	 SolvePartialBlackRegionsWithOnlyOnePath();
+
+
+	 SolveExpandPartialNumberedRegionsWithOnePath();
+	 SolveUpdateCompleteIslands();
+
+
+	 SolveCheckFor2x2Pools();
+	 
+	 
+	 // I was wrong. I also need a function that well find "Isolated Unknown Cells"
+	 SolveIsolatedUnknownCells();
+	 
+	 
+	 // SolveGuessingRemaining();
+
+
+
+}
+
+void Grid::SolveIsolatedUnknownCells()
+{
+	// TODO: Need to filter this
+
+	cout << "SolveIsolatedUnknownCells" << endl;
+
+	//	// Look for isolated unknown regions.
+	//
+	//	{
+	//		const bool any_black_regions = any_of(m_regions.begin(), m_regions.end(),
+	//			[](const shared_ptr<Region>& r) { return r->black(); });
+	//
+	//		set<pair<int, int>> analyzed;
+	//
+	//		for (int x = 0; x < m_width; ++x) {
+	//			for (int y = 0; y < m_height; ++y) {
+	//				if (cell(x, y) == UNKNOWN && analyzed.find(make_pair(x, y)) == analyzed.end()) {
+	//					bool encountered_black = false;
+	//
+	//					set<pair<int, int>> open;
+	//					set<pair<int, int>> closed;
+	//
+	//					open.insert(make_pair(x, y));
+	//
+	//					while (!open.empty()) {
+	//						const pair<int, int> p = *open.begin();
+	//						open.erase(open.begin());
+	//
+	//						switch (cell(p.first, p.second)) {
+	//							case UNKNOWN:
+	//								if (closed.insert(p).second) {
+	//									insert_valid_neighbors(open, p.first, p.second);
+	//								}
+	//
+	//								break;
+	//
+	//							case BLACK:
+	//								encountered_black = true;
+	//								break;
+	//
+	//							default:
+	//								break;
+	//						}
+	//					}
+	//
+	//					if (!encountered_black && (
+	//						any_black_regions || static_cast<int>(closed.size()) < m_total_black)) {
+	//
+	//						mark_as_white.insert(closed.begin(), closed.end());
+	//					}
+	//
+	//					analyzed.insert(closed.begin(), closed.end());
+	//				}
+	//			}
+	//		}
+	//	}
+	//
+	//	if (process(verbose, mark_as_black, mark_as_white, "Isolated unknown regions found.")) {
+	//		return m_sitrep;
+	//	}
+
+
+}
+
+void Grid::SolveConfinementAnalysis()
+{
+	cout << "SolveConfinementAnalysis" << endl;
+
+
+
+		// A region would be "confined" if it could not be completed.
+		// Black regions need to consume m_total_black cells.
+		// White regions need to escape to a number.
+		// Numbered regions need to consume N cells.
+	
+		// Confinement analysis consists of imagining what would happen if a particular unknown cell
+		// were black or white. If that would cause any region to be confined, the unknown cell
+		// must be the opposite color.
+	
+		// Black cells can't confine black regions, obviously.
+		// Black cells can confine white regions, by isolating them.
+		// Black cells can confine numbered regions, by confining them to an insufficiently large space.
+	
+		// White cells can confine black regions, by confining them to an insufficiently large space.
+		//   (Humans look for isolation here, i.e. permanently separated black regions.
+		//   That's harder for us to detect, but counting cells is similarly powerful.)
+		// White cells can't confine white regions.
+		//   (This is true for freestanding white cells, white cells added to other white regions,
+		//   and white cells added to numbered regions.)
+		// White cells can confine numbered regions, when added to other numbered regions.
+		//   This is the most complicated case to analyze. For example:
+		//   ####3
+		//   #6 xXx
+		//   #.  x
+		//   ######
+		//   Imagining cell 'X' to be white additionally prevents region 6 from consuming
+		//   three 'x' cells. (This is true regardless of what other cells region 3 would
+		//   eventually occupy.)
+	
+
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+
+			if (CurrentCell->GetState() == State::Unknown)
+			{
+				set<Cell*> ForbiddenCells;
+				ForbiddenCells.insert(CurrentCell);
+
+				for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+				{
+					const Region& r = **i;
+
+					if (Confined((*i).get(), m_Cache, ForbiddenCells))
+					{
+						if (r.IsBlack())
+						{
+							//mark_as_black.insert(make_pair(x, y));
+							mark_as_black.insert(operator()(Coordinate2D(x, y)));
+
+						}
+						else
+						{
+							//mark_as_white.insert(make_pair(x, y));
+							mark_as_white.insert(operator()(Coordinate2D(x, y)));
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		const Region& r = **i;
+
+		if (r.IsNumbered() && r.RegionSize() < r.GetNumber()) 
+		{
+			for (auto u = r.UnknownsBegin(); u != r.UnknownsEnd(); ++u) 
+			{
+				set<Cell*> ForbiddenCells;
+				ForbiddenCells.insert(*u);
+
+				//insert_valid_unknown_neighbors(ForbiddenCells, u->first, u->second);
+				For_All_Valid_Unknown_Neighbors(operator()(Coordinate2D((*u)->GetPosition().GetX(),
+					(*u)->GetPosition().GetY())), [&ForbiddenCells](Cell* NeighborCell) -> auto
+				{
+					ForbiddenCells.insert(NeighborCell);
+				});
+
+				for (auto k = m_Regions.begin(); k != m_Regions.end(); ++k)
+				{
+					if (k != i && (*k)->IsNumbered() && Confined((*k).get(), m_Cache, ForbiddenCells)) 
+					{
+						mark_as_black.insert(*u);
+					}
+				}
+			}
+		}
+	}
+	
+	cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+	
+	for (auto& CellToMarkBlack : mark_as_black)
+	{
+		Mark(CellToMarkBlack, State::Black);
+	}
+
+	cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+	for (auto& CellToMarkWhite : mark_as_white)
+	{
+		Mark(CellToMarkWhite, State::White);
+	}
+
+	//if (process(verbose, mark_as_black, mark_as_white, "Confinement analysis succeeded.")) {
+	//	return m_sitrep;
+	//}
+
+}
+
+bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const std::set<Cell*>& forbidden)
+{
+
+	// When we look for contradictions, we run confinement analysis (A) without forbidden cells.
+	// This gives us an opportunity to accelerate later confinement analysis (B)
+	// when we have forbidden cells.
+	// During A, we'll record the unknown cells that we consumed.
+	// During B, if none of the forbidden cells are ones that we consumed,
+	// then the forbidden cells can't confine us.
+
+	if (!forbidden.empty())
+	{
+		const auto i = cache.find(r);
+
+		if (i == cache.end())
+		{
+			return false; // We didn't consume any unknown cells.
+		}
+
+		const auto& consumed = i->second;
+
+		if (none_of(forbidden.begin(), forbidden.end(), [&](Cell* p)
+		{
+			return consumed.find(p) != consumed.end();
+		}))
+		{
+			return false;
+		}
+	}
+
+	// The open set contains cells that we're considering adding to the region.
+	set<Cell*> open(r->UnknownsBegin(), r->UnknownsEnd());
+
+	// The closed set contains cells that we've hypothetically added to the region.
+	set<Cell*> closed(r->Begin(), r->End());
+
+	// While we have cells to consider and we need to consume more cells...
+	while (!open.empty()
+		&& (r->IsBlack() && static_cast<int>(closed.size()) < m_total_black
+			|| r->IsWhite()
+			|| r->IsNumbered() && static_cast<int>(closed.size()) < r->GetNumber()))
+	{
+
+		// Consider cell p.
+		Cell* p = *open.begin();
+		open.erase(open.begin());
+
+		// If it's forbidden or we've already consumed it, discard it.
+		if (forbidden.find(p) != forbidden.end() || closed.find(p) != closed.end())
+		{
+			continue;
+		}
+
+		// We need to compare our region r with p's region (if any).
+		//const auto& area = region(p.first, p.second);
+		const auto& area = p->GetRegion();
+
+		if (r->IsBlack())
+		{
+			if (!area)
+			{
+				// Keep going. A black region can consume an unknown cell.
+			}
+			else if (area->IsBlack())
+			{
+				// Keep going. A black region can consume another black region.
+			}
+			else // area->white() || area->numbered()
+			{
+				continue; // We can't consume this. Discard it.
+			}
+		}
+		else if (r->IsWhite())
+		{
+			if (!area) {
+				// Keep going. A white region can consume an unknown cell.
+			}
+			else if (area->IsBlack()) {
+				continue; // We can't consume this. Discard it.
+			}
+			else if (area->IsWhite()) {
+				// Keep going. A white region can consume another white region.
+			}
+			else // area->numbered()
+			{
+				return false; // Yay! Our region r escaped to a numbered region.
+			}
+		}
+		else // r->numbered()
+		{
+			if (!area)
+			{
+				// A numbered region can't consume an unknown cell
+				// that's adjacent to another numbered region.
+				bool rejected = false;
+
+				//for_valid_neighbors(p.first, p.second, [&](const int x, const int y) 
+				//{
+				//	const auto& other = region(x, y);
+
+				//	if (other && other->numbered() && other != r) {
+				//		rejected = true;
+				//	}
+				//});
+
+				Cell* InCell = operator()(Coordinate2D(p->GetPosition().GetX(), p->GetPosition().GetY()));
+				For_All_Valid_Neighbors(InCell, [&](Cell* NeighborCell)
+				{
+					const auto& other = NeighborCell->GetRegion();
+
+					if (other && other->IsNumbered() && other != r)
+					{
+						rejected = true;
+					}
+				});
+
+				if (rejected) {
+					continue;
+				}
+
+				// Keep going. This unknown cell is okay to consume.
+			}
+			else if (area->IsBlack())
+			{
+				continue; // We can't consume this. Discard it.
+			}
+			else if (area->IsWhite())
+			{
+				// Keep going. A numbered region can consume a white region.
+			}
+			else // area->numbered()
+			{
+				throw logic_error("LOGIC ERROR: Grid::confined() - "
+					"I was confused and thought two numbered regions would be adjacent.");
+			}
+		}
+
+		if (!area) // Consume an unknown cell.
+		{
+			closed.insert(p);
+
+			// insert_valid_neighbors(open, p.first, p.second);
+
+			For_All_Valid_Neighbors(operator()(Coordinate2D((p)->GetPosition().GetX(),
+				(p)->GetPosition().GetY())), [&open](Cell* NeighborCell) -> auto
+			{
+				open.insert(NeighborCell);
+			});
+
+
+			if (forbidden.empty())
+			{
+				cache[r].insert(p);
+
+
+			}
+		}
+		else // Consume a whole region.
+		{
+			closed.insert(area->Begin(), area->End());
+			open.insert(area->UnknownsBegin(), area->UnknownsEnd());
+		}
+	}
+
+	// We're confined if we still need to consume more cells.
+	return r->IsBlack() && static_cast<int>(closed.size()) < m_total_black
+		|| r->IsWhite()
+		|| r->IsNumbered() && static_cast<int>(closed.size()) < r->GetNumber();
+}
+
+	//return false;
+
+
+std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache)
+{
+	// Think this first part logic is covered somewhere else 
+
+	//string Grid:: const {
+	//	for (int x = 0; x < m_width - 1; ++x) {
+	//		for (int y = 0; y < m_height - 1; ++y) {
+	//			if (cell(x, y) == BLACK
+	//				&& cell(x + 1, y) == BLACK
+	//				&& cell(x, y + 1) == BLACK
+	//				&& cell(x + 1, y + 1) == BLACK) {
+	//
+	//				return "Contradiction found! Pool detected.";
+	//			}
+	//		}
+	//	}
+	//
+	int black_cells = 0;
+	int white_cells = 0;
+
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		Region& r = **i;
+
+		// We don't need to look for gigantic black regions because
+		// counting black cells is strictly more powerful.
+
+		if (r.IsWhite() && Impossibly_big_white_region(r.RegionSize())
+			|| r.IsNumbered() && r.RegionSize() > r.GetNumber())
+		{
+			return "Contradiction found! Gigantic region detected.";
+		}
+
+		(r.IsBlack() ? black_cells : white_cells) += r.RegionSize();
+
+
+		if (Confined((*i).get(), Cache))
+		{
+			return "Contradiction found! Confined region detected.";
+		}
+	}
+
+	if (black_cells > m_total_black)
+	{
+		return "Contradiction found! Too many black cells detected.";
+	}
+
+	if (white_cells > m_Width * m_Height - m_total_black)
+	{
+		return "Contradiction found! Too many white/numbered cells detected.";
+	}
+
+	return "";
 }
 
 
+
+void Grid::SolveGuessingRemaining()
+{
+	cout << "SolveGuessingRemaining" << endl;
+
+	//	if (guessing) {
+	//		vector<pair<int, int>> v;
+	//
+	//		for (int x = 0; x < m_width; ++x) {
+	//			for (int y = 0; y < m_height; ++y) {
+	//				if (cell(x, y) == UNKNOWN) {
+	//					v.push_back(make_pair(x, y));
+	//				}
+	//			}
+	//		}
+	//
+	//
+	//		// Guess cells in a deterministic but pseudorandomized order.
+	//		// This attempts to avoid repeatedly guessing cells that won't get us anywhere.
+	//
+	//		auto dist = [this](const ptrdiff_t n) {
+	//			// random_shuffle() provides n > 0. It wants [0, n).
+	//			// uniform_int_distribution's ctor takes a and b with a <= b. It produces [a, b].
+	//			return uniform_int_distribution<ptrdiff_t>(0, n - 1)(m_prng);
+	//		};
+	//
+	//		random_shuffle(v.begin(), v.end(), dist);
+	//
+	//
+	//		for (auto u = v.begin(); u != v.end(); ++u) {
+	//			const int x = u->first;
+	//			const int y = u->second;
+	//
+	//			for (int i = 0; i < 2; ++i) {
+	//				const State color = i == 0 ? BLACK : WHITE;
+	//				auto& mark_as_diff = i == 0 ? mark_as_white : mark_as_black;
+	//				auto& mark_as_same = i == 0 ? mark_as_black : mark_as_white;
+	//
+	//				Grid other(*this);
+	//
+	//				other.mark(color, x, y);
+	//
+	//				SitRep sr = KEEP_GOING;
+	//
+	//				while (sr == KEEP_GOING) {
+	//					sr = other.solve(false, false);
+	//				}
+	//
+	//				if (sr == CONTRADICTION_FOUND) {
+	//					mark_as_diff.insert(make_pair(x, y));
+	//					process(verbose, mark_as_black, mark_as_white,
+	//						"Hypothetical contradiction found.");
+	//					return m_sitrep;
+	//				}
+	//
+	//				if (sr == SOLUTION_FOUND) {
+	//					mark_as_same.insert(make_pair(x, y));
+	//					process(verbose, mark_as_black, mark_as_white,
+	//						"Hypothetical solution found.");
+	//					return m_sitrep;
+	//				}
+	//
+	//				// sr == CANNOT_PROCEED
+	//			}
+	//		}
+	//	}
+	
+}
+
+
+void Grid::SolvePreventPoolsTwoBlackTwoUnknown()
+{
+	// Look for squares of one unknown and three black cells, or two unknown and two black cells.
+	std::set<Cell*> mark_as_white;
+
+
+	for (int x = 0; x < m_Width - 1; ++x)
+	{
+		for (int y = 0; y < m_Height - 1; ++y)
+		{
+			struct XYState
+			{
+				int x;
+				int y;
+				State state;
+			};
+
+			//auto CurrentCell = operator()(Coordinate2D(x, y));
+
+			array<XYState, 4> a =
+			{
+				{
+				{ x, y, operator()(Coordinate2D(x, y))->GetState() },
+				{ x + 1, y, operator()(Coordinate2D(x + 1, y))->GetState() },
+				{ x, y + 1, operator()(Coordinate2D(x, y + 1))->GetState() },
+				{ x + 1, y + 1, operator()(Coordinate2D(x + 1, y + 1))->GetState() }
+				}
+
+			};
+
+			static_assert(State::Unknown < State::Black, "This code assumes that UNKNOWN < BLACK.");
+
+
+			sort(a.begin(), a.end(), [](const XYState& l, const XYState& r)
+			{
+				return l.state < r.state;
+			});
+
+			// This logic is already covered in another function
+			//if (a[0].state == State::Unknown
+			//	&& a[1].state == State::Black
+			//	&& a[2].state == State::Black
+			//	&& a[3].state == State::Black)
+			//{
+
+			//	//mark_as_white.insert(make_pair(a[0].x, a[0].y));
+			//	//mark_as_white.insert(operator()(Coordinate2D(a[0].x, a[0].y)));
+
+			//}
+			// TODO: Study how this is passing imagine_black over.
+			/*else*/ if (a[0].state == State::Unknown
+				&& a[1].state == State::Unknown
+				&& a[2].state == State::Black
+				&& a[3].state == State::Black)
+			{
+
+				for (int i = 0; i < 2; ++i)
+				{
+					set<Cell*> imagine_black;
+
+					imagine_black.insert(operator()(Coordinate2D(a[0].x, a[0].y)));
+
+					if (Unreachable(operator()(Coordinate2D(a[1].x, a[1].y)), imagine_black))
+					{
+						//mark_as_white.insert(make_pair(a[0].x, a[0].y));
+						mark_as_white.insert(operator()(Coordinate2D(a[0].x, a[0].y)));
+					}
+
+					std::swap(a[0], a[1]);
+				}
+			}
+		}
+	}
+	
+	for (auto& CellToMarkWhite : mark_as_white)
+	{
+		Mark(CellToMarkWhite, State::White);
+	}
+
+	//if (process(verbose, mark_as_black, mark_as_white, "Whitened cells to prevent pools."))
+	//{
+	//	return m_sitrep;
+	//}
+
+
+}
 
 
 void Grid::SolveStepFiveNSizeTwoChoices()
@@ -925,7 +1546,7 @@ bool Grid::Unreachable(Cell* InCell, set<Cell*> discovered)
 		
 		if (!White_regions.empty())
 		{
-			cout << "White regions is not empty but cant test for impossibly big regions yet" << endl;
+			//	cout << "White regions is not empty but cant test for impossibly big regions yet" << endl;
 			// TODO: Implement a test for this
 
 			if (Impossibly_big_white_region(n_curr + size))
@@ -1200,6 +1821,7 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 		}
 	}
 }
+
 
 
 
