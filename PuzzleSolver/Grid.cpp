@@ -372,9 +372,246 @@ void Grid::SolvePuzzle()
 	// NEXT Start working on solving the bottom left stuff
 	// (Making the 3 island complete by going right, will make the 4 unable to be completed)
 	// (Which will also allow us to solve the 2 in the bottom near the 4 once we see the result from the previous solve)
-
+	SolveDoesWhiteExpandMakeUnconnectableRegion();
 
 }
+
+void Grid::SolveDoesWhiteExpandMakeUnconnectableRegion()
+{
+	cout << "SolveDoesWhiteExpandMakeUnconnectableRegion" << endl;
+	// TODO: Implement:
+
+	// Iterate over all numbered regions
+	// Find all numbered regions of Size N that have N - 1 identified 
+	auto Regions = std::set<Region*>{};
+
+	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	{
+		Regions.insert((*i).get());
+	}
+
+	auto RegionsToTest = set<Region*>{};
+
+	for (auto i = Regions.begin(); i != Regions.end(); ++i)
+	{
+		if ((*i)->IsNumbered())
+		{
+			auto RegionNumber = (*i)->GetNumber();
+
+			if (((*i)->RegionSize() == RegionNumber - 1) && RegionNumber == 3)
+			{
+				RegionsToTest.insert(*i);
+			}
+		}
+	}
+
+	// Now that we have the Numbered Regions we want to test, we also need to check if there is only two unknowns in the regions.
+	for (auto i = Regions.begin(); i != Regions.end(); ++i)
+	{
+
+		if ((*i)->IsNumbered())
+		{
+
+			if ((*i)->UnknownsSize() != 2)
+			{
+				RegionsToTest.erase(*i);
+			}
+		}
+
+		
+	}
+	
+
+
+	// now for each region in regions to test
+	// we want to test each cell in the unknowns in that region (2 of them) by
+	// creating a copy of the grid and marking them white.
+	// Since these islands only needed one more white cell to complete we can call UpdateCompleteIslands();
+	// which may set other unknown adjacents to that region black
+
+	// Once this is done, we want to iterate over all the numbered regions again
+	// we want to test each numbered region by pushing its coordiantes onto a queue with a count of 1 
+	// while (the queue is not empty)
+	// run for all valid unknown neighbors if it finds one add it to the queue and increase the count
+	// keep doing this until the count is greater than the regions number and return true;
+	// if at some point it cant find an unknown to connect to .. return false;
+
+	for (auto RegionWithTwoUnknowns = RegionsToTest.begin(); RegionWithTwoUnknowns != RegionsToTest.end(); ++RegionWithTwoUnknowns)
+	{
+		auto UnknownCellsAroundReg = std::vector<Cell*>{};
+		UnknownCellsAroundReg.reserve(100);
+
+		auto UnknownCellsSet = (*RegionWithTwoUnknowns)->GetUnknownsAroundRegion();
+
+	
+
+		for (auto i = UnknownCellsSet.begin(); i != UnknownCellsSet.end(); ++i)
+		{
+			UnknownCellsAroundReg.push_back(*i);
+		}
+
+		//if (UnknownCellsAroundReg.size() <= 1)
+		//{
+		//	continue;
+		//}
+
+		auto FirstUnknownCell = UnknownCellsAroundReg[1];
+		auto SecondUnknownCell = UnknownCellsAroundReg[0];
+
+		auto x = FirstUnknownCell->GetPosition().GetX();
+		auto y = FirstUnknownCell->GetPosition().GetY();
+
+		Grid GameboardCopy(*this);
+
+		GameboardCopy.Mark(GameboardCopy.operator()(Coordinate2D(x, y)), State::White);
+		GameboardCopy.FuseRegions(*RegionWithTwoUnknowns, GameboardCopy.operator()(Coordinate2D(x, y))->GetRegion());
+		GameboardCopy.SolveUpdateCompleteIslands();
+	
+		//cout << *GameboardCopy.operator()(
+		//	Coordinate2D(FirstUnknownCell->GetPosition().GetX(),
+		//		FirstUnknownCell->GetPosition().GetY())) << endl;
+		
+		cout << *GameboardCopy.operator()(
+			Coordinate2D(FirstUnknownCell->GetPosition().GetX(),
+				FirstUnknownCell->GetPosition().GetY()))->GetRegion();
+		
+		//GameboardCopy.SetStateOfAllUnknownNeighborsToCellsInARegion(FirstUnknownCell->GetRegion(), State::Black);
+		std::cout << **RegionWithTwoUnknowns << std::endl;
+	
+
+
+
+		auto TestedRegion = GameboardCopy.operator()(Coordinate2D(x, y))->GetRegion();
+
+
+		if (TestedRegion->GetNumber() == TestedRegion->RegionSize())
+		{
+			// The numbered region is complete
+			// For each cell in the region mark all valid adjacent cells of the cell in that region black
+			GameboardCopy.SetStateOfAllUnknownNeighborsToCellsInARegion(TestedRegion, State::Black);
+		}
+
+		GameboardCopy.PrintGrid();
+
+
+		auto GameboardCopyRegions = GameboardCopy.GetAllNumberedRegions();
+
+
+
+		for (auto i = GameboardCopyRegions.begin(); i != GameboardCopyRegions.end(); ++i)
+		{
+			if ((*i)->IsNumbered())
+			{
+
+				//GameboardCopy.(Set)
+
+				for (auto j = 0; j < (*i)->GetNumber(); ++j)
+				{
+					GameboardCopy.SolveExpandPartialNumberedRegionsWithOnePath();
+					GameboardCopy.SolvePartialWhiteRegionsWithOnlyOnePath();
+
+				}
+
+				GameboardCopy.SolveUpdateCompleteIslands();
+				
+
+				GameboardCopy.PrintGrid();
+
+
+				if ((*i)->RegionSize() < (*i)->GetNumber() && (*i)->GetUnknownsAroundRegion().size() == 0)
+				{
+					// Then the cell we marked white earlier, cannot be marked white, and it has to be black
+					Mark(operator()(
+						Coordinate2D(FirstUnknownCell->GetPosition().GetX(),
+							FirstUnknownCell->GetPosition().GetY())), State::Black);
+
+					Mark(operator()(
+						Coordinate2D(SecondUnknownCell->GetPosition().GetX(),
+							SecondUnknownCell->GetPosition().GetY())), State::White);
+					SolveUpdateCompleteIslands();
+
+					
+					//SolveExpandPartialNumberedRegionsWithOnePath();
+					//SolvePartialWhiteRegionsWithOnlyOnePath();
+					//SolveUpdateCompleteIslands();
+					
+				}
+			}
+		}
+	}
+
+	//for (auto RegionWithTwoUnknowns = RegionsToTest.begin(); RegionWithTwoUnknowns != RegionsToTest.end(); ++RegionWithTwoUnknowns)
+	//{
+	//	auto UnknownCellsAroundReg = std::vector<Cell*>{};
+	//	UnknownCellsAroundReg.reserve(100);
+
+	//	auto UnknownCellsSet = (*RegionWithTwoUnknowns)->GetUnknownsAroundRegion();
+
+	//	for (auto i = UnknownCellsSet.begin(); i != UnknownCellsSet.end(); ++i)
+	//	{
+	//		UnknownCellsAroundReg.push_back(*i);
+	//	}
+
+	//	//if (UnknownCellsAroundReg.size() <= 1)
+	//	//{
+	//	//	continue;
+	//	//}
+
+
+	//	auto FirstUnknownCell = UnknownCellsAroundReg[1];
+	//	auto SecondUnknownCell = UnknownCellsAroundReg[0];
+
+
+	//	Grid GameboardCopy(*this);
+
+	//	GameboardCopy.Mark(GameboardCopy.operator()(
+	//		Coordinate2D(FirstUnknownCell->GetPosition().GetX(),
+	//			FirstUnknownCell->GetPosition().GetY())),
+	//		State::White);
+	//	GameboardCopy.SolveUpdateCompleteIslands();
+
+
+
+	//	for (int i = 0; i < (*RegionWithTwoUnknowns)->GetNumber(); ++i)
+	//	{
+	//		GameboardCopy.SolveExpandPartialNumberedRegionsWithOnePath();
+	//		GameboardCopy.SolvePartialWhiteRegionsWithOnlyOnePath();
+	//	}
+
+
+
+	//	auto GameboardCopyRegions = GameboardCopy.GetAllNumberedRegions();
+
+	//	for (auto i = GameboardCopyRegions.begin(); i != GameboardCopyRegions.end(); ++i)
+	//	{
+
+	//			if ((*i)->RegionSize() < (*i)->GetNumber() && (*i)->GetUnknownsAroundRegion().size() == 0)
+	//			{
+	//				// Then the cell we marked white earlier, cannot be marked white, and it has to be black
+
+	//				//if (FirstUnknownCell->GetState() != State::Black)
+	//				{
+	//					Mark(operator()(
+	//						Coordinate2D(FirstUnknownCell->GetPosition().GetX(),
+	//							FirstUnknownCell->GetPosition().GetY())), State::Black);
+
+	//					//if (SecondUnknownCell->GetState() != State::White)
+	//					{
+	//						Mark(operator()(
+	//							Coordinate2D(SecondUnknownCell->GetPosition().GetX(),
+	//								SecondUnknownCell->GetPosition().GetY())), State::White);
+	//						SolveUpdateCompleteIslands();
+	//					}
+
+	//					break;
+	//				
+	//			}
+	//		}
+	//	}
+	//}
+}
+
+
 
 
 
@@ -730,10 +967,13 @@ void Grid::SolveExpandPartialNumberedRegionsWithOnePath()
 		for (int y = 0; y < m_Height; ++y)
 		{
 			auto CurrentCell = operator()(Coordinate2D(x, y));
+			if (!CurrentCell) continue;
 
 			if (CurrentCell->GetState() != State::Unknown)
 			{
 				auto CellRegion = CurrentCell->GetRegion();
+				if (!CellRegion) continue;
+
 				if (CellRegion->IsNumbered())
 				{
 					if (CellRegion->GetCellsInRegion().size() < CellRegion->GetNumber())
@@ -761,10 +1001,13 @@ void Grid::SolvePartialWhiteRegionsWithOnlyOnePath()
 		for (int y = 0; y < m_Height; ++y)
 		{
 			auto CurrentCell = operator()(Coordinate2D(x, y));
+			if (!CurrentCell) continue;
 
 			if (CurrentCell->GetState() != State::Unknown)
 			{
 				auto CellRegion = CurrentCell->GetRegion();
+				if (!CellRegion) continue;
+
 				if (CellRegion->IsWhite())
 				{
 
@@ -956,7 +1199,6 @@ set<Region*> Grid::GetAllNumberedRegions() const
 	//for (auto& Reg : m_Regions)
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	{
-		
 		if ((*i)->IsNumbered())
 		{
 			Result.insert((*i).get());
@@ -984,32 +1226,42 @@ void Grid::UpdateCompleteRegions(set<Region*>& InNumberedRegions)
 
 void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState)
 {
+	//cout << "Test" << endl;
+	//if (!InRegion) return;
+
 	if (InState == State::Black || InState == State::White)
 	{
 		if (InState == State::Black)
 		{
+			//cout << "HELLO" << endl;
 			std::vector<Cell*> UnsToSetBlk;
 
-			auto MarkRegUnknownsBlack = [this, &InRegion, &UnsToSetBlk](Region* InRegion)
+
+			for (auto i = InRegion->GetUnknownsAroundRegion().begin(); i != InRegion->GetUnknownsAroundRegion().end(); ++i)
 			{
-				for (auto i = InRegion->GetUnknownsAroundRegion().begin(); i != InRegion->GetUnknownsAroundRegion().end(); ++i)
-				{
-					UnsToSetBlk.push_back(*i);
-
-					//Mark(*i, State::Black);
-
-					//Mark(InCell, State::Black);
-				}
-			};
-
-			MarkRegUnknownsBlack(InRegion);
-
-			for (auto i = UnsToSetBlk.begin(); i != UnsToSetBlk.end(); ++i)
-			{
-				//if ((*i)->GetState() != State::Black)
-					Mark(*i, State::Black);
-
+				UnsToSetBlk.push_back(*i);
 			}
+			cout << "HELLO ADDED" << endl;
+			cout << UnsToSetBlk.size() << endl;
+	
+
+
+			for (auto& UnkCell : UnsToSetBlk)
+			{
+				cout << "HELLO MARKING " << *UnkCell << endl;
+			
+				Mark(UnkCell, State::Black);
+			}
+
+			//MarkRegUnknownsBlack(InRegion);
+
+			//for (auto i = UnsToSetBlk.begin(); i != UnsToSetBlk.end(); ++i)
+			//{
+			//	cout << UnsToSetBlk.size() << endl;
+			//	//if ((*i)->GetState() != State::Black)
+			//		Mark(*i, State::Black);
+
+			//}
 			//for (auto& CellInRegion : InRegion->GetUnknownsAroundRegion())
 			//{
 			//	//For_All_Valid_Unknown_Neighbors(CellInRegion,
@@ -1200,6 +1452,8 @@ void Grid::Mark(Cell* InCell, const State NewState)
 			+ ", " + std::to_string(InCell->GetPosition().GetY()));
 	}
 
+	
+
 	if (NewState != State::Black && NewState != State::White)
 	{
 		throw std::logic_error("Error InCell is not black or white");
@@ -1242,8 +1496,7 @@ void Grid::Mark(Cell* InCell, const State NewState)
 
 void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 {
-	// If we don't have two different regions, we're done. Or one of our regions is nullptr
-	// - There would be no point in trying to fuse the same region
+	// If we don't have two different regions, we're done. 
 	if (!LHSRegion || !RHSRegion || LHSRegion == RHSRegion)
 	{
 			return;
@@ -1258,7 +1511,9 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 	//	}
 	if (LHSRegion->IsNumbered() && RHSRegion->IsNumbered())
 	{
-		throw std::logic_error("Tried to fuse two numbered regions, Do I need to allow this for copied grid testin purposes?");
+		std::cout << "Contradiction FOUND" << std::endl;
+		return;
+		//throw std::logic_error("Tried to fuse two numbered regions, Do I need to allow this for copied grid testin purposes?");
 	}
 
 	// A Black Region can't fuse with a non-black region
@@ -1293,6 +1548,7 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 	for (std::set<Cell*>::iterator i = RHSRegion->Begin(); i != RHSRegion->End(); ++i)
 	{
 		(*i)->SetRegion(LHSRegion);
+		//operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY()))->SetRegion(LHSRegion);
 		//region(i->first, i->second) = r1; 
 	}
 
@@ -1304,6 +1560,7 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 	{
 		if ((*i).get() == RHSRegion)
 		{
+			//std::cout << *RHSRegion << endl;
 			m_Regions.erase(i);
 			return;
 		}

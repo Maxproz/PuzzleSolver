@@ -4,6 +4,8 @@
 #include "Region.h"
 
 #include <iostream>
+#include <string>
+
 
 Region* Cell::GetRegion() const
 {
@@ -18,6 +20,28 @@ void Cell::SetRegion(Region * NewRegion)
 std::ostream & operator<<(std::ostream & os, const Cell & RHS)
 {
 
-	os << RHS.GetPosition() << ", " << "State: " << static_cast<int>(RHS.GetState());
+	auto DisplayState = static_cast<int>(RHS.GetState());
+
+	std::string DisplayString;
+
+	if (DisplayState == -3)
+	{
+		DisplayString = "UNKNOWN";
+	}
+	else if (DisplayState == -2)
+	{
+		DisplayString = "WHITE";
+	}
+	else if (DisplayState == -1)
+	{
+		DisplayString = "BLACK";
+	}
+	else
+	{
+		DisplayString = std::to_string(DisplayState);
+	}
+
+
+	os << RHS.GetPosition() << ", " << "State: " << DisplayString << "\n";
 	return os;
 }

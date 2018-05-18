@@ -11,6 +11,8 @@
 enum class State; // forward declare enum.  Just tells compiler that enum class State exists. (its inside Cell.h)
 class Cell;
 
+// TODO: Add a bool member variable that will be set to true after a number region is complete and had all of its adjacent unknowns set to black.
+// TODO: Make a function that friends std::ostream<< and will print all the cells in that region and also tell us if its complete or not.
 
 class Region
 {
@@ -63,6 +65,9 @@ public:
 		m_Unknowns.insert(first, last);
 	}
 
+
+	friend std::ostream& operator<<(std::ostream& os, const Region& RHS);
+
 private:
 	std::set<Cell*> m_Unknowns;
 	std::set<Cell*> m_Cells; // The cells that make up this region.
@@ -71,6 +76,7 @@ private:
 };
 
 
+std::ostream& operator<<(std::ostream& os, const Region& RHS);
 
 
 #endif // !Region_H

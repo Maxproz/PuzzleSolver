@@ -2,7 +2,7 @@
 
 #include "Cell.h"
 
-
+#include <iostream>
 
 Region::Region(Cell* InCell, const std::set<Cell*>& InUnknowns)
 {
@@ -11,6 +11,11 @@ Region::Region(Cell* InCell, const std::set<Cell*>& InUnknowns)
 
 	// No I don't when I create a region from a cell I add it's unknown neighbors to it.
 	// - Then at the start of this function I use the std::set<Cell*> default copy assignment operator to copy the ptr values.
+	if (m_RegionState == State::Unknown)
+	{
+		throw std::logic_error("LOGIC ERROR: Grid::Region::Region() - state must be known!");
+	}
+
 
 	m_Cells.insert(InCell);
 }
@@ -90,5 +95,16 @@ void Region::EraseUnknown(Cell * InUnknownCell)
 	m_Unknowns.erase(InUnknownCell);
 }
 
+std::ostream & operator<<(std::ostream & os, const Region & RHS)
+{
 
+	os << "Cells In Region:" << "\n";
+	for (auto& Cell : RHS.m_Cells)
+	{
+		os << *Cell << "\n";
+	}
+	os << "End of Cells In Region:" << "\n";
 
+	return os;
+
+}
