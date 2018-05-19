@@ -6,18 +6,31 @@
 #include <queue>	// for the queue used in the unreachable() function
 #include <string>  // std::to_string
 #include <array> // for the array we use in SolvePreventPoolsTwoBlackTwoUnknown
+#include <random> // for uniform_int_distribution in Guessing() function
+
 
 #include "Cell.h"
 #include "Region.h"
 
 using namespace std;
 
+enum class SolveStatus
+{
+	KEEP_GOING, 
+	CONTRADICTION_FOUND,
+	SOLUTION_FOUND,
+	CANNOT_PROCEED
+};
 
 // Unused atm | m_total_black(width * height)
 
 
+
+
 Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> NumberedCellLocations) :
-	m_Width{ Width }, m_Height{ Height }, m_Cells(), m_Regions(), m_total_black(Width * Height)
+	m_Width{ Width }, m_Height{ Height }, m_Cells(), m_Regions(), m_total_black(Width * Height),
+	m_prng(1729), m_sitrep(SolveStatus::KEEP_GOING), m_Cache()
+
 {
 	// Validate width and height.
 	if (Width < 1) { throw runtime_error("RUNTIME ERROR: Grid::Grid() - width must be at least 1."); }
@@ -76,7 +89,8 @@ Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> Numb
 
 // Does a deep copy of the unique_ptr variables, so both Grids have pointers to different Cells and Regions on the Heap
 Grid::Grid(const Grid& Copy) :
-	m_Width{ Copy.m_Width }, m_Height{ Copy.m_Height }, m_Cells(), m_Regions()
+	m_Width{ Copy.m_Width }, m_Height{ Copy.m_Height }, m_Cells(), m_Regions(),
+	m_total_black(Copy.m_total_black), m_prng(Copy.m_prng), m_sitrep(Copy.m_sitrep), m_Cache() 
 {
 	// vector of vectors of Sprites is what you're looking for
 	std::vector<std::vector<std::unique_ptr<Cell>>>   Temp;
@@ -109,6 +123,38 @@ Grid::Grid(const Grid& Copy) :
 	}
 
 	m_Regions = std::move(TempRegionVec);
+
+
+
+	////std::set<std::unique_ptr<Region>>  TempRegionVec;
+	////std::map<Region*, std::set<Cell*>> TempCacheVec;
+	//std::vector<std::pair<Region*, std::set<Cell*>>> TempCacheVec;
+
+	//for (auto AllCacheCopy = Copy.m_Cache.begin(); AllCacheCopy != Copy.m_Cache.end(); ++AllCacheCopy)
+	//{
+
+	//	
+	//	//auto NewObj = std::make_pair<Region*, std::set<Cell*>>(make_pair(
+	//	//	new Region((*AllCacheCopy).first), new ((**AllRegCopy)));
+	//	cout << *(AllCacheCopy->first) << endl;
+	//	auto RegionToInsert = new Region(*(AllCacheCopy->first));
+	//	//auto Reg = new Region()
+
+	//	auto SetToInsert = std::set<Cell*>();
+	//	for (auto cell : (*AllCacheCopy).second)
+	//	{
+	//		SetToInsert.insert(new Cell(*cell));
+	//	}
+
+	//	TempCacheVec.push_back(make_pair(RegionToInsert, SetToInsert));
+	//	//TempCacheMap.insert(make_pair(RegionToInsert, SetToInsert));
+	//}
+
+	//for (auto CacheCopy = TempCacheVec.begin(); CacheCopy != TempCacheVec.end(); ++CacheCopy)
+	//{
+	//	m_Cache.insert(*CacheCopy);
+	//}
+	m_Cache = std::move(Copy.m_Cache);
 }
 
 Grid& Grid::operator=(const Grid& CopyAssign)
@@ -185,6 +231,12 @@ void Grid::swap(Grid& other)
 	std::swap(m_Height, other.m_Height);
 	std::swap(m_Cells, other.m_Cells);
 	std::swap(m_Regions, other.m_Regions);
+	
+	std::swap(m_Cache, other.m_Cache);
+	std::swap(m_prng, other.m_prng);
+	std::swap(m_sitrep, other.m_sitrep);
+	std::swap(m_total_black, other.m_total_black);
+
 }
 
 
@@ -269,58 +321,67 @@ void Grid::PrintAllUnknownsInAllRegions() const
 	}
 }
 
-
-
-void Grid::SolvePuzzle()
+SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 {
-	// TODO: I need to call this function using a condition from a "while (Not Solved)" do these steps over in order etc...
-	// TODO: I wish it was more organized in this function
 
-	// Start by solving using the wikipedia steps
-	// - Just organize/refactor using your best judgement
-
-	// Step 1 
-	// mark cells adjacent to two or more numbers as black.
-	SolveCellsWithTwoAdjacentNumberedCells(); // Verified working.
-
-	// Step 2 
-	// Once an island is "complete"—that is, it has all the white cells its number requires—all cells that share a side with it must be black.Obviously, any cells marked with '1' at the outset are complete islands unto themselves, and can be isolated with black at the beginning.
-	SolveUpdateCompleteIslands();
+	//std::map<Region*, set<Cell*>> cache;
 
 
-	// TODO: OnHold 2x2 black pool verifiction 
-	// - OnHold until we have a good black pool to test on our board.
-	//		- Whenever three black cells form an "elbow"—an L - shape—the cell in the bend(diagonally in from the corner of the L) must be white. (The alternative is a "pool", for lack of a better term.)
-	//			- A function that looks for 2v2 pools of black and if it find an L of 3 it marks the last cell white.
+
+	// Look for contradictions. Do this first.
+	const string z = DetectContradictions(m_Cache, Verbose);
+
+	if (!z.empty())
+	{
+		if (Verbose)
+		{
+			cout << z << endl;// print(s);
+		}
+
+		return SolveStatus::CONTRADICTION_FOUND;
+	}
 
 
-	// Step 3
-	// All black cells must eventually be connected. If there is a black region with only one possible way to connect to the rest of the board, the sole connecting pathway must be black.
-	SolveBlackHasToConnect();
+	//m_Cache = std::move(cache);
+
+		// See if we're done. Do this second.
+
+	if (Known() == m_Width * m_Height)
+	{
+		if (Verbose)
+		{
+			cout << " I'm done" << endl;// print("I'm done!");
+		}
+
+		return SolveStatus::SOLUTION_FOUND;
+	}
 
 
-	// TODO: SOON: On hold until we have a white region not part of a numbered region
-	// All white cells must eventually be part of exactly one island.If there is a white region that does not contain a number, and there is only one possible way for it to connect to a numbered white region, the sole connecting pathway must be white.
-	//	A function that checks if there is connected or not connected white cells that are not numbered yet.
-	//	A function that checks if there is only one possible way for the white cells to connect to a numbered white region
-	//	A function that marks the sole connecting pathway as part of that numbered region
 
-	
-	// TODO: On hold, function to test if completing an island by marking a cell white will make it impossible for another 
-	// - island to complete itself.
-	
+	auto res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
 
+	auto res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
 
-	//  (DONE) Implement the code that will check for cells (mainly numbered) that have only 1 possible path to expand, and mark 
-	// - that cell white, which should fuse regions and update the grid etc..=
-	SolveExpandPartialNumberedRegionsWithOnePath();
+	auto res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
 
-	// (DONE) Hmm before SolveStepFour is called, we need to implement the check for creating an "impossibly big white region"
-	SolveStepFourUnreachableCells();
+	auto res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
 
-
-	// (DONE): Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
-	SolveCheckFor2x2Pools();
 
 
 	// NEXT: (mostly done): 
@@ -337,163 +398,1097 @@ void Grid::SolvePuzzle()
 	//		A function that sets a white cell to an island cell (when a numbered cell connects to a white cell)
 	//		A function that tests if two islands would connect to the same white cell at a 90 degree angle
 	//      A function that sets an unknown cell that is diagionally between two islands to black.
-	SolveStepFiveNSizeTwoChoices();
-	SolveExpandPartialNumberedRegionsWithOnePath();
-	SolveUpdateCompleteIslands();
-	SolveCheckFor2x2Pools();
-	SolveUpdateCompleteIslands();
-	SolveCheckFor2x2Pools();
-	SolveBlackHasToConnect(); // This pushes the black cell at the bottom forward // NOTE: Not even sure why
-	//SolvePartialWhiteRegionsWithOnlyOnePath(); // Connect the white region with the 4 in the bottom
+	auto res9 = SolveStepFiveNSizeTwoChoices(Verbose);
+	if (res9)
+	{
+		return m_sitrep;
+	}
+
+
+
+	auto res0 = SolveStepFourUnreachableCells(Verbose);
+	if (res0)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	//  (DONE) Implement the code that will check for cells (mainly numbered) that have only 1 possible path to expand, and mark 
+	// - that cell white, which should fuse regions and update the grid etc..=
+	/*auto*/ res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	/*auto*/ res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+	/*auto*/ res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	res9 = SolveStepFiveNSizeTwoChoices(Verbose);
+	if (res9)
+	{
+		return m_sitrep;
+	}
+
+	// (DONE): Scan for 2x2 pools with 3 black 1 unknown and mark the unknown white. (Update Complete Regions etc...)
+	auto res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	auto res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res0 = SolveStepFourUnreachableCells(Verbose);
+	if (res0)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+
+	auto res2 = SolveConfinementAnalysis(Verbose);
+	if (res2)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+	SolveGuessingRemaining(Verbose, Guessing);
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
 	
-	// TODO: FIX: Expand and solve the 2 island in the top left
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+	//const string ss = DetectContradictions(m_Cache, Verbose);
+
+	//if (!ss.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << ss << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	// I was wrong. I also need a function that well find "Isolated Unknown Cells"
+	auto res3 = SolveIsolatedUnknownCells(Verbose);
+	if (res3)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+	SolveGuessingRemaining(Verbose, Guessing);
+
+
+	// Guessing here?
+
+	//const string s = DetectContradictions(m_Cache, Verbose);
+
+	//if (!s.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << s << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	//res2 = SolveConfinementAnalysis(Verbose);
+	//if (res2)
+	//{
+	//	return m_sitrep;
+	//}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+	res8 = SolveCheckFor2x2Pools(Verbose);
+	if (res8)
+	{
+		return m_sitrep;
+	}
+
+	// First thing, clean up the debug code so you can actually make sense of what is going on.
+	res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+	if (res1)
+	{
+		return m_sitrep;
+	}
+
+
+
+
+
+
+	res12 = SolveUpdateCompleteIslands(Verbose);
+	if (res12)
+	{
+		return m_sitrep;
+	}
+
+
+	//res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	//if (res7)
+	//{
+	//	return m_sitrep;
+	//}
+
+	//res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	//if (res10)
+	//{
+	//	return m_sitrep;
+	//}
+
+
+	//res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	//if (res11)
+	//{
+	//	return m_sitrep;
+	//}
+
+
+	res2 = SolveConfinementAnalysis(Verbose);
+	if (res2)
+	{
+		return m_sitrep;
+	}
+
+
+
+	//const string sss = DetectContradictions(m_Cache, Verbose);
+
+	//if (!sss.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << sss << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+
+
+	//const string ssss = DetectContradictions(m_Cache, Verbose);
+
+	//if (!ssss.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << ssss << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+	//const string sssss = DetectContradictions(m_Cache, Verbose);
+
+	//if (!sssss.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << sssss << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+	res7 = SolveExpandPartialNumberedRegionsWithOnePath(Verbose);
+	if (res7)
+	{
+		return m_sitrep;
+	}
+
+	res10 = SolvePartialWhiteRegionsWithOnlyOnePath(Verbose); // Connect the white region with the 4 in the bottom
+	if (res10)
+	{
+		return m_sitrep;
+	}
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+	if (Guessing)
+	{
+		SolveGuessingRemaining(Verbose, Guessing);
+		//DetectContradictions(m_Cache, Verbose);
+
+	}
+
+
+
+
+
+
+
+	res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
+	if (res11)
+	{
+		return m_sitrep;
+	}
+
+
+	//SolveUpdateCompleteIslands(Verbose);
+	//SolveCheckFor2x2Pools(Verbose);
+
+
+	// uses Confined(); member func
 	//SolveExpandPartialNumberedRegionsWithOnePath();
 	//SolveUpdateCompleteIslands();
 
-	//SolveBlackHasToConnect();// Push the black cell at the bottom forward again.
-	SolvePartialBlackRegionsWithOnlyOnePath();
-	SolveStepFiveNSizeTwoChoices();
 
-	SolveExpandPartialNumberedRegionsWithOnePath();
-	SolveUpdateCompleteIslands();
+	//SolveExpandPartialNumberedRegionsWithOnePath();
+	//SolveUpdateCompleteIslands();
 
-	SolveCheckFor2x2Pools();
-
-	SolveUpdateCompleteIslands();
-
-	SolveCheckFor2x2Pools();
-
-	SolvePartialWhiteRegionsWithOnlyOnePath(); // Connect the white region with the 4 in the bottom
-
-	SolvePartialBlackRegionsWithOnlyOnePath();
-
-	// Solve Top Left 2
-	SolveExpandPartialNumberedRegionsWithOnePath();
-	SolveUpdateCompleteIslands();
+	//SolvePartialBlackRegionsWithOnlyOnePath();
 
 
-	// Push top left black path
-	SolvePartialBlackRegionsWithOnlyOnePath();
+	//SolveExpandPartialNumberedRegionsWithOnePath();
+	//SolveUpdateCompleteIslands();
+
+
+	//SolveCheckFor2x2Pools();
 
 
 
-	// NEXT: UPDATE: (STUCK) Start working on solving the bottom left stuff
-	// (Making the 3 island complete by going right, will make the 4 unable to be completed)
-	// (Which will also allow us to solve the 2 in the bottom near the 4 once we see the result from the previous solve)
+	//SolveUpdateCompleteIslands();
 
 
-	// First thing, clean up the debug code so you can actually make sense of what is going on.
-	SolvePreventPoolsTwoBlackTwoUnknown();
 
 
-	SolveStepFourUnreachableCells();
+
+
+
+
 
 	
-	// The last two functions I should realisticly need are "confinment analysis" and a "guessing" function
-	// Attempted to solve the confinment analysis one myself, and failed so I will just need to copypasta, convert, and study existing code
-	
-	const string s = DetectContradictions(m_Cache);
-	if (!s.empty())
+
+	//SolveExpandPartialNumberedRegionsWithOnePath();
+
+	//SolveUpdateCompleteIslands();
+
+	//SolveCheckFor2x2Pools();
+	//SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+
+	//SolveConfinementAnalysis(Verbose);
+
+
+	//res = SolveGuessingRemaining(Verbose, Guessing);
+	//res = SolveGuessingRemaining(Verbose, Guessing);
+	//res = SolveGuessingRemaining(Verbose, Guessing);
+
+
+	//SolveExpandPartialNumberedRegionsWithOnePath();
+	//SolveExpandPartialNumberedRegionsWithOnePath();
+
+
+
+	//const string ss = DetectContradictions(m_Cache, Verbose);
+
+	//if (!ss.empty())
+	//{
+	//	if (Verbose)
+	//	{
+	//		cout << ss << endl;// print(s);
+	//	}
+
+	//	return SolveStatus::CONTRADICTION_FOUND;
+	//}
+
+
+
+
+
+	//res2 = SolveConfinementAnalysis(Verbose);
+	//if (res2)
+	//{
+	//	return m_sitrep;
+	//}
+
+
+
+	if (Verbose)
 	{
-		cout << s << endl;
+		cout << ("I'm stumped!") << endl;
 	}
 
-	 SolveConfinementAnalysis();
-	// uses Confined(); member func
-	 SolveExpandPartialNumberedRegionsWithOnePath();
-	 SolveUpdateCompleteIslands();
-	
-	 
-	 SolveExpandPartialNumberedRegionsWithOnePath();
-	 SolveUpdateCompleteIslands();
-	 
-	 SolvePartialBlackRegionsWithOnlyOnePath();
+	return SolveStatus::CANNOT_PROCEED;
 
 
-	 SolveExpandPartialNumberedRegionsWithOnePath();
-	 SolveUpdateCompleteIslands();
 
-
-	 SolveCheckFor2x2Pools();
-	 
-	 
-	 // I was wrong. I also need a function that well find "Isolated Unknown Cells"
-	 SolveIsolatedUnknownCells();
-	 
-	 
-	 // SolveGuessingRemaining();
+	// TODO: In the "Should black region expand function
+	// make a check that will iterate over all the unknowns in a region
+	// if marking an unknown cell in that region black. will merge every black cell into one region, then do it.
 
 
 
 }
 
-void Grid::SolveIsolatedUnknownCells()
+
+
+bool Grid::Process(const bool verbose, const set<Cell*>& mark_as_black, const set<Cell*>& mark_as_white, const string & s)
+{
+	if (mark_as_black.empty() && mark_as_white.empty()) 
+	{
+		return false;
+	}
+	
+	for (auto i = mark_as_black.begin(); i != mark_as_black.end(); ++i)
+	{
+		Mark((*i), State::Black);
+	}
+	
+	for (auto i = mark_as_white.begin(); i != mark_as_white.end(); ++i)
+	{
+		Mark((*i), State::White);
+	}
+	
+	if (verbose)
+	{
+		set<Cell*> updated(mark_as_black);
+		updated.insert(mark_as_white.begin(), mark_as_white.end());
+
+		string t = s;
+
+		if (m_sitrep == SolveStatus::CONTRADICTION_FOUND) 
+		{
+			t += " (Contradiction found! Attempted to fuse two numbered regions"
+				" or mark an already known cell.)";
+		}
+
+		//print(t, updated);
+		PrintGrid();
+	}
+	
+	return true;
+}
+
+int Grid::Known() const
+{
+	int ret = 0;
+	
+	for (int x = 0; x < m_Width; ++x)
+	{
+		for (int y = 0; y < m_Height; ++y)
+		{
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+			
+			if (CurrentCell->GetState() != State::Unknown)
+			{
+				++ret;
+			}
+		}
+	}
+	
+	return ret;
+}
+
+SolveStatus Grid::SolveGuessingRemaining(bool IsVerbose, bool IsGuessing)
+{
+	//cout << "SolveGuessingRemaining" << endl;
+
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+	if (IsGuessing)
+	{
+		//vector<pair<int, int>> v;
+
+		vector<Cell*> v;
+
+		for (int x = 0; x < m_Width; ++x)
+		{
+			for (int y = 0; y < m_Height; ++y) 
+			{
+				auto CurrentCell = operator()(Coordinate2D(x, y));
+
+				if (CurrentCell->GetState() == State::Unknown)
+				{
+					v.push_back(CurrentCell);
+				}
+			}
+		}
+
+
+		// Guess cells in a deterministic but pseudorandomized order.
+		// This attempts to avoid repeatedly guessing cells that won't get us anywhere.
+
+		auto dist = [this](const ptrdiff_t n) {
+			// random_shuffle() provides n > 0. It wants [0, n).
+			// uniform_int_distribution's ctor takes a and b with a <= b. It produces [a, b].
+			return uniform_int_distribution<ptrdiff_t>(0, n - 1)(m_prng);
+		};
+
+		random_shuffle(v.begin(), v.end(), dist);
+
+
+		for (auto u = v.begin(); u != v.end(); ++u) 
+		{
+			const auto x = (*u)->GetPosition().GetX();
+			const auto y = (*u)->GetPosition().GetY();
+
+
+			for (int i = 0; i < 2; ++i) 
+			{
+				const State color = i == 0 ? State::Black : State::White;
+				auto& mark_as_diff = i == 0 ? mark_as_white : mark_as_black;
+				auto& mark_as_same = i == 0 ? mark_as_black : mark_as_white;
+
+				Grid other(*this);
+
+				auto OthersCurrentCell = other.operator()(Coordinate2D(x, y));
+
+				other.Mark(OthersCurrentCell, color);
+
+			
+				
+
+				SolveStatus sr = SolveStatus::KEEP_GOING;
+
+				while (sr == SolveStatus::KEEP_GOING) 
+				{
+					sr = other.SolvePuzzle(false, false);
+					cout << "Priting other grid" << endl;
+					other.PrintGrid();
+
+				}
+
+				if (sr == SolveStatus::CONTRADICTION_FOUND) 
+				{
+					//mark_as_diff.insert(make_pair(x, y));
+				
+					mark_as_diff.insert(operator()(Coordinate2D(x, y)));
+
+
+					Process(IsVerbose, mark_as_black, mark_as_white,
+						"Hypothetical contradiction found.");
+
+
+					//for (auto& CellToMarkBlack : mark_as_black)
+					//{
+					//	Mark(CellToMarkBlack, State::Black);
+					//}
+
+					//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+					//for (auto& CellToMarkWhite : mark_as_white)
+					//{
+					//	Mark(CellToMarkWhite, State::White);
+					//}
+
+
+					return m_sitrep;
+				}
+
+				if (sr == SolveStatus::SOLUTION_FOUND)
+				{
+					//mark_as_same.insert(make_pair(x, y));
+				
+					mark_as_same.insert(operator()(Coordinate2D(x, y)));
+
+
+					Process(IsVerbose, mark_as_black, mark_as_white,
+						"Hypothetical solution found.");
+
+					//for (auto& CellToMarkBlack : mark_as_black)
+					//{
+					//	Mark(CellToMarkBlack, State::Black);
+					//}
+
+					//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+					//for (auto& CellToMarkWhite : mark_as_white)
+					//{
+					//	Mark(CellToMarkWhite, State::White);
+					//}
+
+
+
+					return m_sitrep;
+				}
+
+				// sr == CANNOT_PROCEED
+			}
+		}
+	}
+
+	m_sitrep = SolveStatus::CANNOT_PROCEED;
+	return SolveStatus::CANNOT_PROCEED;
+
+	//cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+
+	//for (auto& CellToMarkBlack : mark_as_black)
+	//{
+	//	Mark(CellToMarkBlack, State::Black);
+	//}
+
+	//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+	//for (auto& CellToMarkWhite : mark_as_white)
+	//{
+	//	Mark(CellToMarkWhite, State::White);
+	//}
+
+
+}
+//
+
+
+
+bool Grid::SolveIsolatedUnknownCells(bool Verbose)
 {
 	// TODO: Need to filter this
 
-	cout << "SolveIsolatedUnknownCells" << endl;
+	//cout << "SolveIsolatedUnknownCells" << endl;
 
-	//	// Look for isolated unknown regions.
-	//
-	//	{
-	//		const bool any_black_regions = any_of(m_regions.begin(), m_regions.end(),
-	//			[](const shared_ptr<Region>& r) { return r->black(); });
-	//
-	//		set<pair<int, int>> analyzed;
-	//
-	//		for (int x = 0; x < m_width; ++x) {
-	//			for (int y = 0; y < m_height; ++y) {
-	//				if (cell(x, y) == UNKNOWN && analyzed.find(make_pair(x, y)) == analyzed.end()) {
-	//					bool encountered_black = false;
-	//
-	//					set<pair<int, int>> open;
-	//					set<pair<int, int>> closed;
-	//
-	//					open.insert(make_pair(x, y));
-	//
-	//					while (!open.empty()) {
-	//						const pair<int, int> p = *open.begin();
-	//						open.erase(open.begin());
-	//
-	//						switch (cell(p.first, p.second)) {
-	//							case UNKNOWN:
-	//								if (closed.insert(p).second) {
-	//									insert_valid_neighbors(open, p.first, p.second);
-	//								}
-	//
-	//								break;
-	//
-	//							case BLACK:
-	//								encountered_black = true;
-	//								break;
-	//
-	//							default:
-	//								break;
-	//						}
-	//					}
-	//
-	//					if (!encountered_black && (
-	//						any_black_regions || static_cast<int>(closed.size()) < m_total_black)) {
-	//
-	//						mark_as_white.insert(closed.begin(), closed.end());
-	//					}
-	//
-	//					analyzed.insert(closed.begin(), closed.end());
-	//				}
-	//			}
-	//		}
-	//	}
-	//
-	//	if (process(verbose, mark_as_black, mark_as_white, "Isolated unknown regions found.")) {
-	//		return m_sitrep;
-	//	}
+	// Look for isolated unknown regions.
 
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+	const bool any_black_regions = any_of(m_Regions.begin(), m_Regions.end(),
+		[](auto& r) { return r->IsBlack(); });
+
+
+	//set<pair<int, int>> analyzed;
+
+	set<Cell*> analyzed;
+
+	for (int x = 0; x < m_Width; ++x) 
+	{
+		for (int y = 0; y < m_Height; ++y) 
+		{
+			auto InCell = operator()(Coordinate2D(x, y));
+
+			//if (cell(x, y) == State::Unknown && analyzed.find(make_pair(x, y)) == analyzed.end()) 
+			if (InCell->GetState() == State::Unknown && analyzed.find(InCell) == analyzed.end())
+			{
+				bool encountered_black = false;
+
+				//set<pair<int, int>> open;
+				//set<pair<int, int>> closed;
+
+				set<Cell*> open;
+				set<Cell*> closed;
+
+				open.insert(InCell);
+
+				while (!open.empty())
+				{
+					//const pair<int, int> p = *open.begin();
+					Cell* p = *open.begin();
+					open.erase(open.begin());
+
+
+					//switch (cell(p.first, p.second)) 
+					switch (operator()(Coordinate2D(p->GetPosition().GetX(), p->GetPosition().GetY()))->GetState())
+					{
+						case State::Unknown:
+							if (closed.insert(p).second) 
+							{
+								//insert_valid_neighbors(open, p.first, p.second);
+
+								For_All_Valid_Neighbors(operator()(Coordinate2D((p)->GetPosition().GetX(),
+									(p)->GetPosition().GetY())), [&open](Cell* NeighborCell) -> auto
+								{
+									open.insert(NeighborCell);
+								});
+							}
+
+							break;
+
+						case State::Black:
+							encountered_black = true;
+							break;
+
+						default:
+							break;
+					}
+				}
+
+				if (!encountered_black && (
+					any_black_regions || static_cast<int>(closed.size()) < m_total_black)) {
+
+					mark_as_white.insert(closed.begin(), closed.end());
+				}
+
+				analyzed.insert(closed.begin(), closed.end());
+			}
+		}
+	}
+
+
+
+	//cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+
+	//for (auto& CellToMarkBlack : mark_as_black)
+	//{
+	//	Mark(CellToMarkBlack, State::Black);
+	//}
+
+	//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+	//for (auto& CellToMarkWhite : mark_as_white)
+	//{
+	//	Mark(CellToMarkWhite, State::White);
+	//}
+
+	//const bool Verbose = true;
+	if (Process(Verbose, mark_as_black, mark_as_white, "Isolated unknown regions found."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 
 }
 
-void Grid::SolveConfinementAnalysis()
+
+
+
+
+bool Grid::SolveConfinementAnalysis(bool Verbose)
 {
-	cout << "SolveConfinementAnalysis" << endl;
+	//cout << "SolveConfinementAnalysis" << endl;
 
 
 
@@ -551,12 +1546,15 @@ void Grid::SolveConfinementAnalysis()
 						{
 							//mark_as_black.insert(make_pair(x, y));
 							mark_as_black.insert(operator()(Coordinate2D(x, y)));
-
+							//mark_as_black.insert(CurrentCell);
+						
 						}
 						else
 						{
 							//mark_as_white.insert(make_pair(x, y));
 							mark_as_white.insert(operator()(Coordinate2D(x, y)));
+							//mark_as_white.insert(CurrentCell);
+							//CurrentCell
 						}
 					}
 				}
@@ -594,23 +1592,29 @@ void Grid::SolveConfinementAnalysis()
 		}
 	}
 	
-	cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
-	
-	for (auto& CellToMarkBlack : mark_as_black)
-	{
-		Mark(CellToMarkBlack, State::Black);
-	}
-
-	cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
-
-	for (auto& CellToMarkWhite : mark_as_white)
-	{
-		Mark(CellToMarkWhite, State::White);
-	}
-
-	//if (process(verbose, mark_as_black, mark_as_white, "Confinement analysis succeeded.")) {
-	//	return m_sitrep;
+	//cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+	//
+	//for (auto& CellToMarkBlack : mark_as_black)
+	//{
+	//	Mark(CellToMarkBlack, State::Black);
 	//}
+
+	//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+
+	//for (auto& CellToMarkWhite : mark_as_white)
+	//{
+	//	Mark(CellToMarkWhite, State::White);
+	//}
+
+	//const bool Verbose = true;
+	if (Process(Verbose, mark_as_black, mark_as_white, "Confinement analysis succeeded.")) 
+	{
+		return true; // m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 
 }
 
@@ -688,13 +1692,16 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 		}
 		else if (r->IsWhite())
 		{
-			if (!area) {
+			if (!area)
+			{
 				// Keep going. A white region can consume an unknown cell.
 			}
-			else if (area->IsBlack()) {
+			else if (area->IsBlack())
+			{
 				continue; // We can't consume this. Discard it.
 			}
-			else if (area->IsWhite()) {
+			else if (area->IsWhite()) 
+			{
 				// Keep going. A white region can consume another white region.
 			}
 			else // area->numbered()
@@ -787,23 +1794,41 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 	//return false;
 
 
-std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache)
+std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache, bool Verbose)
 {
-	// Think this first part logic is covered somewhere else 
 
-	//string Grid:: const {
-	//	for (int x = 0; x < m_width - 1; ++x) {
-	//		for (int y = 0; y < m_height - 1; ++y) {
-	//			if (cell(x, y) == BLACK
-	//				&& cell(x + 1, y) == BLACK
-	//				&& cell(x, y + 1) == BLACK
-	//				&& cell(x + 1, y + 1) == BLACK) {
+	Cache = m_Cache;
+
+
+	// Think this first part logic is covered somewhere else 
+	//auto hasPool = SolveCheckFor2x2Pools(Verbose);
+	//auto HasPools = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
+
+	for (int x = 0; x < m_Width - 1; ++x)
+	{
+		for (int y = 0; y < m_Height - 1; ++y)
+		{
+			if (operator()(Coordinate2D(x, y))->GetState() == State::Black
+				&& operator()(Coordinate2D(x + 1, y))->GetState() == State::Black
+				&& operator()(Coordinate2D(x, y + 1))->GetState() == State::Black
+				&& operator()(Coordinate2D(x + 1, y + 1))->GetState() == State::Black)
+			{
+
+				return "Contradiction found! Pool detected.";
+			}
+		}
+	}
+
+
+	//string temp; 
 	//
-	//				return "Contradiction found! Pool detected.";
-	//			}
-	//		}
-	//	}
-	//
+	//if (hasPool || HasPools)
+	//{
+	//	return "Contradiction found! Pool detected.";
+	//}
+
+
+
 	int black_cells = 0;
 	int white_cells = 0;
 
@@ -825,6 +1850,7 @@ std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache)
 
 		if (Confined((*i).get(), Cache))
 		{
+			
 			return "Contradiction found! Confined region detected.";
 		}
 	}
@@ -844,80 +1870,13 @@ std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache)
 
 
 
-void Grid::SolveGuessingRemaining()
-{
-	cout << "SolveGuessingRemaining" << endl;
-
-	//	if (guessing) {
-	//		vector<pair<int, int>> v;
-	//
-	//		for (int x = 0; x < m_width; ++x) {
-	//			for (int y = 0; y < m_height; ++y) {
-	//				if (cell(x, y) == UNKNOWN) {
-	//					v.push_back(make_pair(x, y));
-	//				}
-	//			}
-	//		}
-	//
-	//
-	//		// Guess cells in a deterministic but pseudorandomized order.
-	//		// This attempts to avoid repeatedly guessing cells that won't get us anywhere.
-	//
-	//		auto dist = [this](const ptrdiff_t n) {
-	//			// random_shuffle() provides n > 0. It wants [0, n).
-	//			// uniform_int_distribution's ctor takes a and b with a <= b. It produces [a, b].
-	//			return uniform_int_distribution<ptrdiff_t>(0, n - 1)(m_prng);
-	//		};
-	//
-	//		random_shuffle(v.begin(), v.end(), dist);
-	//
-	//
-	//		for (auto u = v.begin(); u != v.end(); ++u) {
-	//			const int x = u->first;
-	//			const int y = u->second;
-	//
-	//			for (int i = 0; i < 2; ++i) {
-	//				const State color = i == 0 ? BLACK : WHITE;
-	//				auto& mark_as_diff = i == 0 ? mark_as_white : mark_as_black;
-	//				auto& mark_as_same = i == 0 ? mark_as_black : mark_as_white;
-	//
-	//				Grid other(*this);
-	//
-	//				other.mark(color, x, y);
-	//
-	//				SitRep sr = KEEP_GOING;
-	//
-	//				while (sr == KEEP_GOING) {
-	//					sr = other.solve(false, false);
-	//				}
-	//
-	//				if (sr == CONTRADICTION_FOUND) {
-	//					mark_as_diff.insert(make_pair(x, y));
-	//					process(verbose, mark_as_black, mark_as_white,
-	//						"Hypothetical contradiction found.");
-	//					return m_sitrep;
-	//				}
-	//
-	//				if (sr == SOLUTION_FOUND) {
-	//					mark_as_same.insert(make_pair(x, y));
-	//					process(verbose, mark_as_black, mark_as_white,
-	//						"Hypothetical solution found.");
-	//					return m_sitrep;
-	//				}
-	//
-	//				// sr == CANNOT_PROCEED
-	//			}
-	//		}
-	//	}
-	
-}
 
 
-void Grid::SolvePreventPoolsTwoBlackTwoUnknown()
+bool Grid::SolvePreventPoolsTwoBlackTwoUnknown(bool Verbose)
 {
 	// Look for squares of one unknown and three black cells, or two unknown and two black cells.
 	std::set<Cell*> mark_as_white;
-
+	std::set<Cell*> mark_as_black;
 
 	for (int x = 0; x < m_Width - 1; ++x)
 	{
@@ -951,7 +1910,7 @@ void Grid::SolvePreventPoolsTwoBlackTwoUnknown()
 				return l.state < r.state;
 			});
 
-			// This logic is already covered in another function
+			//// This logic is already covered in another function
 			//if (a[0].state == State::Unknown
 			//	&& a[1].state == State::Black
 			//	&& a[2].state == State::Black
@@ -959,7 +1918,7 @@ void Grid::SolvePreventPoolsTwoBlackTwoUnknown()
 			//{
 
 			//	//mark_as_white.insert(make_pair(a[0].x, a[0].y));
-			//	//mark_as_white.insert(operator()(Coordinate2D(a[0].x, a[0].y)));
+			//	mark_as_white.insert(operator()(Coordinate2D(a[0].x, a[0].y)));
 
 			//}
 			// TODO: Study how this is passing imagine_black over.
@@ -987,23 +1946,35 @@ void Grid::SolvePreventPoolsTwoBlackTwoUnknown()
 		}
 	}
 	
-	for (auto& CellToMarkWhite : mark_as_white)
-	{
-		Mark(CellToMarkWhite, State::White);
-	}
-
-	//if (process(verbose, mark_as_black, mark_as_white, "Whitened cells to prevent pools."))
+	//for (auto& CellToMarkWhite : mark_as_white)
 	//{
-	//	return m_sitrep;
+	//	Mark(CellToMarkWhite, State::White);
 	//}
+
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "Whitened cells to prevent pools."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 
 
 }
 
 
-void Grid::SolveStepFiveNSizeTwoChoices()
+bool Grid::SolveStepFiveNSizeTwoChoices(bool Verbose)
 {
-	cout << "SolveStepFiveNSizeTwoChoices" << endl;
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+
+
+	//cout << "SolveStepFiveNSizeTwoChoices" << endl;
 	// TODO: Implement:
 
 	// Iterate over all numbered regions
@@ -1087,7 +2058,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeOtherCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeOtherCellToSet << endl;
-					Mark(MaybeOtherCellToSet, State::Black);
+					//Mark(MaybeOtherCellToSet, State::Black);
+					mark_as_black.insert(MaybeOtherCellToSet);
 				}
 				
 			}
@@ -1096,7 +2068,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeCellToSet << endl;
-					Mark(MaybeCellToSet, State::Black);
+					//Mark(MaybeCellToSet, State::Black);
+					mark_as_black.insert(MaybeCellToSet);
 				}
 			}
 
@@ -1115,7 +2088,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeOtherCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeOtherCellToSet << endl;
-					Mark(MaybeOtherCellToSet, State::Black);
+					//Mark(MaybeOtherCellToSet, State::Black);
+					mark_as_black.insert(MaybeOtherCellToSet);
 				}
 
 			}
@@ -1124,7 +2098,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeCellToSet << endl;
-					Mark(MaybeCellToSet, State::Black);
+					//Mark(MaybeCellToSet, State::Black);
+					mark_as_black.insert(MaybeCellToSet);
 				}
 			}
 		}
@@ -1142,7 +2117,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeOtherCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeOtherCellToSet << endl;
-					Mark(MaybeOtherCellToSet, State::Black);
+					//Mark(MaybeOtherCellToSet, State::Black);
+					mark_as_black.insert(MaybeOtherCellToSet);
 				}
 
 			}
@@ -1151,7 +2127,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeCellToSet << endl;
-					Mark(MaybeCellToSet, State::Black);
+					//Mark(MaybeCellToSet, State::Black);
+					mark_as_black.insert(MaybeCellToSet);
 				}
 			}
 		}
@@ -1168,7 +2145,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeOtherCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeOtherCellToSet << endl;
-					Mark(MaybeOtherCellToSet, State::Black);
+					//Mark(MaybeOtherCellToSet, State::Black);
+					mark_as_black.insert(MaybeOtherCellToSet);
 				}
 
 			}
@@ -1177,7 +2155,8 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 				if (MaybeCellToSet->GetState() == State::Unknown)
 				{
 					std::cout << "Two Unknowns Touch at corners trying to mark black " << *MaybeCellToSet << endl;
-					Mark(MaybeCellToSet, State::Black);
+					//Mark(MaybeCellToSet, State::Black);
+					mark_as_black.insert(MaybeCellToSet);
 				}
 			}
 		}
@@ -1186,80 +2165,95 @@ void Grid::SolveStepFiveNSizeTwoChoices()
 			cout << "End of testing of regions of size 2 with 2 unknown paths" << endl;
 		}
 	}
-}
 
-	
-bool Grid::DoesMarkBlackCreateAPool(Cell* InCell)
-{
-	if (InCell->GetState() != State::Unknown)
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SolveStepFiveNSizeTwoChoices."))
+	{
+		return true;// m_sitrep;
+	}
+	else
 	{
 		return false;
-
-		//throw std::logic_error("Trying to mark a cell black that is not unknown");
 	}
-
-	Grid GameBoardCopy(*this);
-
-	auto CurrentCell = GameBoardCopy.operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY()));
-	auto x = InCell->GetPosition().GetX();
-	auto y = InCell->GetPosition().GetY();
-
-	set<Cell*> Blacks;
-	set<Cell*> CellsInSquare;
-
-	//if (CurrentCell->GetState() != State::Black)
-		GameBoardCopy.Mark(CurrentCell, State::Black);
-
-
-	for (int x = 0; x < m_Width; ++x)
-	{
-		for (int y = 0; y < m_Height; ++y)
-		{
-			auto CurrentCell = GameBoardCopy.operator()(Coordinate2D(x, y));
-
-			set<Cell*> Blacks;
-			set<Cell*> CellsInSquare;
-
-			if (CurrentCell->GetState() == State::Black)
-			{
-				CellsInSquare.insert(CurrentCell);
-
-				auto RightCell = GameBoardCopy.operator()(Coordinate2D(x + 1, y));
-				if (!RightCell) continue;
-				CellsInSquare.insert(RightCell);
-
-				auto BottomRightCell = GameBoardCopy.operator()(Coordinate2D(x + 1, y + 1));
-				if (!BottomRightCell) continue;
-				CellsInSquare.insert(BottomRightCell);
-
-				auto BottomCell = GameBoardCopy.operator()(Coordinate2D(x, y + 1));
-				if (!BottomCell) continue;
-				CellsInSquare.insert(BottomCell);
-
-				for (auto i = CellsInSquare.begin(); i != CellsInSquare.end(); ++i)
-				{
-					if ((*i)->GetState() == State::Black)
-					{
-						Blacks.insert(*i);
-					}
-				}
-
-				if (Blacks.size() == 4)
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
 }
 
+//	
+//bool Grid::DoesMarkBlackCreateAPool(Cell* InCell)
+//{
+//	if (InCell->GetState() != State::Unknown)
+//	{
+//		return false;
+//
+//		//throw std::logic_error("Trying to mark a cell black that is not unknown");
+//	}
+//
+//	Grid GameBoardCopy(*this);
+//
+//	auto CurrentCell = GameBoardCopy.operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY()));
+//	auto x = InCell->GetPosition().GetX();
+//	auto y = InCell->GetPosition().GetY();
+//
+//	set<Cell*> Blacks;
+//	set<Cell*> CellsInSquare;
+//
+//	//if (CurrentCell->GetState() != State::Black)
+//	GameBoardCopy.Mark(CurrentCell, State::Black);
+//
+//
+//	for (int x = 0; x < m_Width; ++x)
+//	{
+//		for (int y = 0; y < m_Height; ++y)
+//		{
+//			auto CurrentCell = GameBoardCopy.operator()(Coordinate2D(x, y));
+//
+//			set<Cell*> Blacks;
+//			set<Cell*> CellsInSquare;
+//
+//			if (CurrentCell->GetState() == State::Black)
+//			{
+//				CellsInSquare.insert(CurrentCell);
+//
+//				auto RightCell = GameBoardCopy.operator()(Coordinate2D(x + 1, y));
+//				if (!RightCell) continue;
+//				CellsInSquare.insert(RightCell);
+//
+//				auto BottomRightCell = GameBoardCopy.operator()(Coordinate2D(x + 1, y + 1));
+//				if (!BottomRightCell) continue;
+//				CellsInSquare.insert(BottomRightCell);
+//
+//				auto BottomCell = GameBoardCopy.operator()(Coordinate2D(x, y + 1));
+//				if (!BottomCell) continue;
+//				CellsInSquare.insert(BottomCell);
+//
+//				for (auto i = CellsInSquare.begin(); i != CellsInSquare.end(); ++i)
+//				{
+//					if ((*i)->GetState() == State::Black)
+//					{
+//						Blacks.insert(*i);
+//					}
+//				}
+//
+//				if (Blacks.size() == 4)
+//				{
+//					return true;
+//				}
+//			}
+//		}
+//	}
+//
+//	return false;
+//}
 
 
-void Grid::SolveCheckFor2x2Pools()
+
+bool Grid::SolveCheckFor2x2Pools(bool Verbose)
 {
-	cout << "SolveCheckFor2x2Pools" << endl;
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+	//cout << "SolveCheckFor2x2Pools" << endl;
 
 	// Start at the top left and move down and to the right looking for black cells.
 	// if the cell is black test the other 3 in the square to see if 2 of them are black and one is unknown.
@@ -1316,12 +2310,23 @@ void Grid::SolveCheckFor2x2Pools()
 			if (Blacks.size() == 3 && Unknown.size() == 1)
 			{
 
-				Mark((*Unknown.begin()), State::White);
+				//Mark((*Unknown.begin()), State::White);
+				mark_as_white.insert((*Unknown.begin()));
 			}
 		}
 	}
 	// TODO: Is this needed?
 	//SolveUpdateCompleteIslands();
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SolveCheckFor2x2Pools."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
@@ -1344,9 +2349,12 @@ bool Grid::Impossibly_big_white_region(const int N) const
 	return false;
 }
 
-void Grid::SolveExpandPartialNumberedRegionsWithOnePath()
+bool Grid::SolveExpandPartialNumberedRegionsWithOnePath(bool Verbose)
 {
-	cout << "SolveExpandPartialNumberedRegionsWithOnePath" << endl;
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+	//cout << "SolveExpandPartialNumberedRegionsWithOnePath" << endl;
 
 	for (int x = 0; x < m_Width; ++x)
 	{
@@ -1366,22 +2374,36 @@ void Grid::SolveExpandPartialNumberedRegionsWithOnePath()
 					{
 						if (CellRegion->GetUnknownsAroundRegion().size() == 1)
 						{
-							Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::White);
+							//Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::White);
+							mark_as_white.insert(*CellRegion->GetUnknownsAroundRegion().begin());
 						}
 					}
 				}
 			}
 		}
 	}
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SolveExpandPartialNumberedRegionsWithOnePath."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
 // NOTE: I think I accidently cover this logic for black cells in "SolveBlackHasToConnect();"
-void Grid::SolvePartialWhiteRegionsWithOnlyOnePath()
+bool Grid::SolvePartialWhiteRegionsWithOnlyOnePath(bool Verbose)
 {
-	cout << "SolvePartialWhiteRegionsWithOnlyOnePath" << endl; 
-	
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
 
+
+	//cout << "SolvePartialWhiteRegionsWithOnlyOnePath" << endl; 
+	
 	for (int x = 0; x < m_Width; ++x)
 	{
 		for (int y = 0; y < m_Height; ++y)
@@ -1399,20 +2421,37 @@ void Grid::SolvePartialWhiteRegionsWithOnlyOnePath()
 
 					if (CellRegion->GetUnknownsAroundRegion().size() == 1)
 					{
-						Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::White);
+						//Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::White);
+						mark_as_white.insert(*CellRegion->GetUnknownsAroundRegion().begin());
 					}
 				}
 			}
 		}
 	}
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SolvePartialWhiteRegionsWithOnlyOnePath."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
+
+
 }
 
 
 // TODO: Is it really okay to expland a black cell. STOP: I just realized I am checking the REGION of blacks for unknowns
 // 
-void Grid::SolvePartialBlackRegionsWithOnlyOnePath()
+bool Grid::SolvePartialBlackRegionsWithOnlyOnePath(bool Verbose)
 {
-	cout << "SolvePartialBlackRegionsWithOnlyOnePath" << endl;
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+	//cout << "SolvePartialBlackRegionsWithOnlyOnePath" << endl;
 
 	for (int x = 0; x < m_Width; ++x)
 	{
@@ -1420,26 +2459,39 @@ void Grid::SolvePartialBlackRegionsWithOnlyOnePath()
 		{
 			auto CurrentCell = operator()(Coordinate2D(x, y));
 
+			if (!CurrentCell) continue;
+
 			if (CurrentCell->GetState() != State::Unknown)
 			{
 				auto CellRegion = CurrentCell->GetRegion();
+				if (!CellRegion) continue;;
+
 				if (CellRegion->IsBlack())
 				{
-
 					if (CellRegion->GetUnknownsAroundRegion().size() == 1)
 					{
-						Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::Black);
+						//Mark(*CellRegion->GetUnknownsAroundRegion().begin(), State::Black);
+						mark_as_black.insert(*CellRegion->GetUnknownsAroundRegion().begin());
 					}
 				}
 			}
 		}
 	}
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SolvePartialBlackRegionsWithOnlyOnePath."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
-void Grid::SolveStepFourUnreachableCells()
+bool Grid::SolveStepFourUnreachableCells(bool Verbose)
 {
-	cout << "SolveStepFourUnreachableCells" << endl;
+	//cout << "SolveStepFourUnreachableCells" << endl;
 
 	set<Cell*> Mark_as_black;
 	set<Cell*> Mark_as_white;
@@ -1456,18 +2508,23 @@ void Grid::SolveStepFourUnreachableCells()
 		}
 	}
 	
-	for (auto i = Mark_as_black.begin(); i != Mark_as_black.end(); ++i)
-	{
-		Mark((*i), State::Black);
-	}
+	//for (auto i = Mark_as_black.begin(); i != Mark_as_black.end(); ++i)
+	//{
+	//	Mark((*i), State::Black);
+	//}
 
 	
 	// Should this be called here, just to make sure it happens?
 	//SolveUpdateCompleteIslands();
 
-		//if (process(verbose, mark_as_black, mark_as_white, "Unreachable cells blackened.")) {
-		//	return m_sitrep;
-		//}
+	if (Process(Verbose, Mark_as_black, Mark_as_white, "Unreachable cells blackened."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
@@ -1595,8 +2652,9 @@ set<Region*> Grid::GetAllNumberedRegions() const
 }
 
 // A complete region is region->Number() == region->RegionSize()
-void Grid::UpdateCompleteRegions(set<Region*>& InNumberedRegions) 
+bool Grid::UpdateCompleteRegions(set<Region*>& InNumberedRegions, bool Verbose) 
 {
+	int WasAddedCtr = 0;
 	//for (auto& Reg : InNumberedRegions)
 	for (auto i = InNumberedRegions.begin(); i != InNumberedRegions.end(); ++i)
 	{
@@ -1604,16 +2662,29 @@ void Grid::UpdateCompleteRegions(set<Region*>& InNumberedRegions)
 		{
 			// The numbered region is complete
 			// For each cell in the region mark all valid adjacent cells of the cell in that region black
-			SetStateOfAllUnknownNeighborsToCellsInARegion(*i, State::Black);
+			auto res = SetStateOfAllUnknownNeighborsToCellsInARegion(*i, State::Black, Verbose);
+			if (res)
+				WasAddedCtr++;
 		}
 	}
+
+	if (WasAddedCtr > 0)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 
-void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState)
+bool Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState, bool Verbose)
 {
 	//cout << "Test" << endl;
 	//if (!InRegion) return;
+
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
 
 	if (InState == State::Black || InState == State::White)
 	{
@@ -1627,16 +2698,17 @@ void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const
 			{
 				UnsToSetBlk.push_back(*i);
 			}
-			cout << "HELLO ADDED" << endl;
-			cout << UnsToSetBlk.size() << endl;
+			//cout << "HELLO ADDED" << endl;
+			//cout << UnsToSetBlk.size() << endl;
 	
 
 
 			for (auto& UnkCell : UnsToSetBlk)
 			{
-				cout << "HELLO MARKING " << *UnkCell << endl;
+				//cout << "HELLO MARKING " << *UnkCell << endl;
 			
-				Mark(UnkCell, State::Black);
+				//Mark(UnkCell, State::Black);
+				mark_as_black.insert(UnkCell);
 			}
 
 			//MarkRegUnknownsBlack(InRegion);
@@ -1661,6 +2733,18 @@ void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const
 		{
 			// TODO: Needs implemented
 		}
+
+
+		if (Process(Verbose, mark_as_black, mark_as_white, "PROCESS SetStateOfAllUnknownNeighborsToCellsInARegion."))
+		{
+			return true;// m_sitrep;
+		}
+		else
+		{
+			return false;
+		}
+
+
 	}
 	else
 	{
@@ -1673,8 +2757,8 @@ void Grid::SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const
 // - I didn't consider the fact that the neighbor function we were testing could have already had a connecting path.
 // - At this point it only covers the logic for black cells that didn't already have a path like a corner square etc..
 // - instead of rewriting the function I am thinking I will just add another function that covers the other logic....
-void Grid::SolveBlackHasToConnect()
-{
+//void Grid::SolveBlackHasToConnect()
+//{
 	//cout << "SolveBlackHasToConnect" << endl;
 
 	//// TODO: There is some nice logic in here that I can use later for needing to test copies of a board
@@ -1737,7 +2821,7 @@ void Grid::SolveBlackHasToConnect()
 	//	}
 
 	//}
-}
+//}
 
 bool Grid::BlackCellHasAtLeastOnePath(Cell* NeighborCell)
 {
@@ -1778,17 +2862,31 @@ bool Grid::BlackCellHasAtLeastOnePath(Cell* NeighborCell)
 	return true;
 }
 
-void Grid::SolveUpdateCompleteIslands()
+bool Grid::SolveUpdateCompleteIslands(bool Verbose)
 {
-	cout << "SolveUpdateCompleteIslands" << endl;
+	//cout << "SolveUpdateCompleteIslands" << endl;
 
 	auto NumberedRegions = GetAllNumberedRegions();
-	UpdateCompleteRegions(NumberedRegions);
+	auto res = UpdateCompleteRegions(NumberedRegions, Verbose);
+
+	if (res)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
-void Grid::SolveCellsWithTwoAdjacentNumberedCells()
+bool Grid::SolveCellsWithTwoAdjacentNumberedCells(bool Verbose)
 {
-	cout << "SolveCellsWithTwoAdjacentNumberedCells" << endl;
+	std::set<Cell*> mark_as_white;
+	std::set<Cell*> mark_as_black;
+
+
+
+	//cout << "SolveCellsWithTwoAdjacentNumberedCells" << endl;
 	// For every cell on the board....
 	for (int x = 0; x < m_Width; ++x)
 	{
@@ -1816,9 +2914,21 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 
 			if (NumberedNeighbors.size() > 1)
 			{
-				Mark(TestedCell, State::Black);
+				//Mark(TestedCell, State::Black);
+				mark_as_black.insert(TestedCell);
 			}
 		}
+	}
+
+
+
+	if (Process(Verbose, mark_as_black, mark_as_white, "SolveCellsWithTwoAdjacentNumberedCells."))
+	{
+		return true;// m_sitrep;
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -1830,11 +2940,17 @@ void Grid::SolveCellsWithTwoAdjacentNumberedCells()
 
 void Grid::Mark(Cell* InCell, const State NewState)
 {
+	if (InCell && InCell->GetPosition() == Coordinate2D(4, 0))
+	{
+		cout << *InCell << endl;
+	}
+
 	if (InCell->GetState() != State::Unknown)
 	{
 		// TODO: This would be where I would return with contradiction found or something like that to our "solve" while loop
 		//std::cout << InCell->GetPosition() << endl;
 		//return;
+		//cout << *InCell->GetRegion() << endl;
 		throw std::logic_error("Trying to mark a cell black that is not set to unknown " + std::to_string(InCell->GetPosition().GetX()) + 
 			+ ", " + std::to_string(InCell->GetPosition().GetY()));
 	}

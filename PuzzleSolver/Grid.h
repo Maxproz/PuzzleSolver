@@ -9,6 +9,7 @@
 
 #include <vector> // Used as a data member
 #include <memory> // Used as a data member
+#include <random> // Used as a data member
 #include <set>
 #include <map>
 
@@ -37,7 +38,7 @@ class Coordinate2D; // need name for function parameters
 // TODO TEST: After Marking a cell black or white first create a new region using it.
 // TODO TEST: After marking a cell (black or white), we should iterate all of its valid neighbors and attempt to fuse regions
 
-
+enum class SolveStatus;
 
 class Grid
 {
@@ -66,55 +67,59 @@ public:
 	void PrintAllUnknownsInAllRegions() const;
 
 	// Where most of the logic will happen
-	void SolvePuzzle();
+	SolveStatus SolvePuzzle(bool Verbose = true, bool Guessing = true);//	SitRep solve(););
 
 private:
 
 	// Helper functions that were created for solving step 2 (can be reused if needed in other spots later)
 	std::set<Region*> GetAllNumberedRegions() const;
-	void UpdateCompleteRegions(std::set<Region*>& InNumberedRegions);
-	void SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState);
+	bool UpdateCompleteRegions(std::set<Region*>& InNumberedRegions, bool Verbose);
+	bool SetStateOfAllUnknownNeighborsToCellsInARegion(Region* InRegion, const State& InState, bool Verbose);
 
 	// TODO: Figure out a better way to name these solving steps...
-	void SolveBlackHasToConnect();
+	//void SolveBlackHasToConnect();
 	bool BlackCellHasAtLeastOnePath(Cell* InBlackCell);
 
-	void SolveUpdateCompleteIslands();
-	void SolveCellsWithTwoAdjacentNumberedCells();
+	bool SolveUpdateCompleteIslands(bool Verbose);
+	bool SolveCellsWithTwoAdjacentNumberedCells(bool Verbose);
 	
-	void SolveStepFourUnreachableCells();
+	bool SolveStepFourUnreachableCells(bool Verbose);
 	bool Unreachable(Cell* InCell, std::set<Cell*> discovered = std::set<Cell*>());
 	bool Impossibly_big_white_region(const int N) const;
 
-	void SolveExpandPartialNumberedRegionsWithOnePath();
+	bool SolveExpandPartialNumberedRegionsWithOnePath(bool Verbose);
 
-	void SolveCheckFor2x2Pools();
+	bool SolveCheckFor2x2Pools(bool Verbose);
 
-	void SolveStepFiveNSizeTwoChoices();
+	bool SolveStepFiveNSizeTwoChoices(bool Verbose);
 
 	// Added a bunch a logic that really hasn't been useful yet here.
-	bool DoesMarkBlackCreateAPool(Cell* InCell);
+	//bool DoesMarkBlackCreateAPool(Cell* InCell);
 
-	void SolvePartialWhiteRegionsWithOnlyOnePath();
-	void SolvePartialBlackRegionsWithOnlyOnePath();
+	bool SolvePartialWhiteRegionsWithOnlyOnePath(bool Verbose);
+	bool SolvePartialBlackRegionsWithOnlyOnePath(bool Verbose);
 
 	//void SolveDoesWhiteExpandMakeUnconnectableRegion();
-	void SolvePreventPoolsTwoBlackTwoUnknown();
+	bool SolvePreventPoolsTwoBlackTwoUnknown(bool Verbose);
 
-	void SolveConfinementAnalysis();
+	bool SolveConfinementAnalysis(bool Verbose);
 	bool Confined(Region* r,
 		std::map<Region*, std::set<Cell*>>& cache,
 		const std::set<Cell*>& forbidden = std::set<Cell*>());
 	
-	std::string DetectContradictions(std::map<Region*, std::set<Cell*>>& Cache);
+	std::string DetectContradictions(std::map<Region*, std::set<Cell*>>& Cache, bool Verbose);
 	
 	
-	void SolveIsolatedUnknownCells();
+	bool SolveIsolatedUnknownCells(bool Verbose);
 
 
-	void SolveGuessingRemaining();
+	SolveStatus SolveGuessingRemaining(bool IsVerbose = true, bool IsGuessing = true);
 
+	// mostly unused function
+	bool Process(const bool verbose, const std::set<Cell*>& mark_as_black,
+		const std::set<Cell*>& mark_as_white, const std::string& s);
 
+	int Known() const;
 
 	void Mark(Cell* InCell, const State NewState);
 
@@ -239,13 +244,24 @@ private:
 
 	}
 
-	std::map<Region*, std::set<Cell*>> m_Cache;
+	
 
 private:
 	int m_Width{ 0 };
 	int m_Height{ 0 };
 	
 	int m_total_black{ 0 };
+
+	std::map<Region*, std::set<Cell*>> m_Cache;
+
+	// This is initially KEEP_GOING.
+	// If an attempt is made to fuse two numbered regions, or to mark an already known cell,
+	// this is set to CONTRADICTION_FOUND.
+	SolveStatus m_sitrep;
+	
+	// This is used to guess cells in a deterministic but pseudorandomized order.
+	std::mt19937 m_prng;
+
 
 	// TODO: m_cells should be allocated in the constructor of grid.
 	std::vector<std::vector<std::unique_ptr<Cell > > > m_Cells;

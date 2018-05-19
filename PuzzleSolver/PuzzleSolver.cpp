@@ -19,6 +19,13 @@
 #include "Coordinate2D.h"
 #include "Cell.h"
 
+enum class SolveStatus
+{
+	KEEP_GOING,
+	CONTRADICTION_FOUND,
+	SOLUTION_FOUND
+};
+
 using namespace std;
 
 
@@ -98,7 +105,13 @@ int main()
 		// Most likely we need a loop because to solve these puzzles means repeating some of the solving steps multiple times.
 		// It will know when it needs to stop when all cells are known(not unknown probably) 
 		// - so we will probably need a tracker variable for that, which shouldn't be that hard to put in.
-		GameBoard.SolvePuzzle();
+		//auto CurrentRes = GameBoard.SolvePuzzle();
+
+		while (GameBoard.SolvePuzzle() == SolveStatus::KEEP_GOING) {}
+		//while (CurrentRes == SolveStatus::KEEP_GOING)
+		//{
+		//	CurrentRes = GameBoard.SolvePuzzle();
+		//}
 		const long long finish = counter();
 
 		// Print how long it took to solve the puzzle
