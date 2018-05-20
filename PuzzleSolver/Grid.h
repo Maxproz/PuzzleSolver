@@ -84,7 +84,7 @@ private:
 	bool SolveCellsWithTwoAdjacentNumberedCells(bool Verbose);
 	
 	bool SolveStepFourUnreachableCells(bool Verbose);
-	bool Unreachable(Cell* InCell, std::set<Cell*> discovered = std::set<Cell*>());
+	bool Unreachable(Cell* InCell, std::set<Cell*>& discovered = std::set<Cell*>());
 	bool Impossibly_big_white_region(const int N) const;
 
 	bool SolveExpandPartialNumberedRegionsWithOnePath(bool Verbose);
@@ -102,12 +102,12 @@ private:
 	//void SolveDoesWhiteExpandMakeUnconnectableRegion();
 	bool SolvePreventPoolsTwoBlackTwoUnknown(bool Verbose);
 
-	bool SolveConfinementAnalysis(bool Verbose);
+	bool SolveConfinementAnalysis(std::map<Region*, std::set<Cell*>>& cache, bool Verbose);
 	bool Confined(Region* r,
 		std::map<Region*, std::set<Cell*>>& cache,
 		const std::set<Cell*>& forbidden = std::set<Cell*>());
 	
-	std::string DetectContradictions(std::map<Region*, std::set<Cell*>>& Cache, bool Verbose);
+	std::string DetectContradictions(std::map<Region*, std::set<Cell*>>& Cache);
 	
 	
 	bool SolveIsolatedUnknownCells(bool Verbose);
@@ -252,7 +252,7 @@ private:
 	
 	int m_total_black{ 0 };
 
-	std::map<Region*, std::set<Cell*>> m_Cache;
+
 
 	// This is initially KEEP_GOING.
 	// If an attempt is made to fuse two numbered regions, or to mark an already known cell,
