@@ -38,6 +38,10 @@ class Coordinate2D; // need name for function parameters
 // TODO TEST: After Marking a cell black or white first create a new region using it.
 // TODO TEST: After marking a cell (black or white), we should iterate all of its valid neighbors and attempt to fuse regions
 
+// Explicitly specified underlying types are now Standard.
+#pragma warning(disable: 4480)
+
+
 enum class SolveStatus;
 
 class Grid
@@ -103,7 +107,7 @@ private:
 	bool SolvePreventPoolsTwoBlackTwoUnknown(bool Verbose);
 
 	bool SolveConfinementAnalysis(std::map<Region*, std::set<Cell*>>& cache, bool Verbose);
-	bool Confined(Region* r,
+	bool Confined(Region*& r,
 		std::map<Region*, std::set<Cell*>>& cache,
 		const std::set<Cell*>& forbidden = std::set<Cell*>());
 	

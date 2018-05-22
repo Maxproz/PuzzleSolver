@@ -25,11 +25,11 @@ enum class SolveStatus
 // Unused atm | m_total_black(width * height)
 
 
-
+// working m_prng num 1251456
 
 Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> NumberedCellLocations) :
 	m_Width{ Width }, m_Height{ Height }, m_Cells(), m_Regions(), m_total_black(Width * Height),
-	m_prng(1251456), m_sitrep(SolveStatus::KEEP_GOING) 
+	m_prng(1729), m_sitrep(SolveStatus::KEEP_GOING)
 
 {
 	// Validate width and height.
@@ -48,7 +48,7 @@ Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> Numb
 		// then y
 		for (int r = 0; r < m_Height; ++r)
 		{
-			col.push_back(std::unique_ptr<Cell>(new Cell(Coordinate2D(c, r), State::Unknown)));
+			col.push_back(std::unique_ptr<Cell>(new Cell(Coordinate2D(c, r), State::Unknown))); /*nullptr)*/
 		}
 
 		// Now add the column vector.
@@ -72,6 +72,7 @@ Grid::Grid(int Width, int Height, std::vector<std::pair<Coordinate2D, int>> Numb
 					
 					// If This is changing off of unknown, we need to also create a region for it.
 					AddRegion(m_Cells[x][y].get());
+					
 
 					//				// m_total_black is width * height - (sum of all numbered cells).
 					//				// Calculating this allows us to determine whether black regions
@@ -104,7 +105,7 @@ Grid::Grid(const Grid& Copy) :
 		// then y
 		for (int r = 0; r < m_Height; ++r)
 		{
-			col.push_back(std::unique_ptr<Cell>(new Cell(Coordinate2D(c, r), Copy(Coordinate2D(c,r))->GetState())));
+			col.push_back(std::unique_ptr<Cell>(new Cell(Coordinate2D(c, r), Copy(Coordinate2D(c, r))->GetState())));/*, Copy(Coordinate2D(c,r))->GetRegion())));*/ // *Copy.operator()(Coordinate2D(c, r)))));
 		}
 
 		// Now add the column vector.
@@ -115,12 +116,24 @@ Grid::Grid(const Grid& Copy) :
 
 	std::set<std::unique_ptr<Region>>  TempRegionVec;
 
+	std::vector<std::unique_ptr<Region>>   TempReg;
+
 	for (auto AllRegCopy = Copy.m_Regions.begin(); AllRegCopy != Copy.m_Regions.end(); ++AllRegCopy)
 	{
-		auto RegionPtr = unique_ptr<Region>(new Region((**AllRegCopy)));
-		TempRegionVec.insert(std::move(RegionPtr));
+		Region RegCopy = *(*AllRegCopy).get();
+		//auto RegionPtr = unique_ptr<Region>(new Region((**AllRegCopy)));
+		TempReg.push_back(unique_ptr<Region>(new Region(RegCopy)));
+		//auto RegionPtr = unique_ptr<Region>(new Region()
+
+		//TempRegionVec.insert(std::move(RegionPtr));
 		//TempRegionVec.insert(unique_ptr<Region>(new Region((**AllRegCopy))));
 	}
+
+	for (auto& cell : TempReg)
+	{
+		TempRegionVec.insert(std::move(cell));
+	}
+
 
 	m_Regions = std::move(TempRegionVec);
 
@@ -330,7 +343,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 
 
-	{
+	
 		// Look for contradictions. Do this first.
 		const string z = DetectContradictions(cache);
 
@@ -343,7 +356,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 			return SolveStatus::CONTRADICTION_FOUND;
 		}
-	}
+	
 	//m_Cache = std::move(cache);
 
 		// See if we're done. Do this second.
@@ -370,11 +383,19 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 		// Look for complete islands.
 	
 		for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i) {
-			const Region& r = **i;
+			Region* r = (*i).get();
 	
-			if (r.IsNumbered() && r.RegionSize() == r.GetNumber())
+			//if (r->IsNumbered() == false)
+			//	continue;
+
+			if ((r->IsNumbered()) && r->RegionSize() == r->GetNumber())
 			{
-				mark_as_black.insert(r.UnknownsBegin(), r.UnknownsEnd());
+				//cout << "Printing region whos unknowns will be marked black" << endl;
+				//for (auto& cell : r->GetUnknownsAroundRegion())
+				//{
+				//	cout << *cell << endl;
+				//}
+				mark_as_black.insert(r->UnknownsBegin(), r->UnknownsEnd());
 			}
 		}
 	
@@ -394,7 +415,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 
 		// Look for partial regions that can expand into only one cell. They must expand.
-	
+		cout << "x2" << endl;
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i) {
 		 Region* r = (*i).get();
 
@@ -438,7 +459,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	//	return m_sitrep;
 	//}
 
-
+	cout << "x3" << endl;
 
 
 		// Look for N - 1 islands with exactly two diagonal liberties.
@@ -492,7 +513,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	
 
 
-
+	cout << "x4" << endl;
 
 	//auto res0 = SolveStepFourUnreachableCells(Verbose);
 	//if (res0)
@@ -504,10 +525,11 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	{
 		for (int y = 0; y < m_Height; ++y)
 		{
-			//auto CurrentCell = operator()(Coordinate2D(x, y));
-			if (Unreachable(operator()(Coordinate2D(x, y))))
+			auto CurrentCell = operator()(Coordinate2D(x, y));
+			//if (Unreachable(operator()(Coordinate2D(x, y))))
+			if (Unreachable(CurrentCell))
 			{
-				mark_as_black.insert(operator()(Coordinate2D(x, y)));
+				mark_as_black.insert(CurrentCell);
 			}
 		}
 	}
@@ -529,7 +551,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	//	return m_sitrep;
 	//}
 
-	//// First thing, clean up the debug code so you can actually make sense of what is going on.
+	////// First thing, clean up the debug code so you can actually make sense of what is going on.
 	//auto res1 = SolvePreventPoolsTwoBlackTwoUnknown(Verbose);
 	//if (res1)
 	//{
@@ -543,7 +565,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 
 
-
+	cout << "x5" << endl;
 
 
 
@@ -726,7 +748,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 		return m_sitrep;
 	}
 
-
+	cout << "x6" << endl;
 
 
 	//auto res2 = SolveConfinementAnalysis(cache, Verbose);
@@ -750,11 +772,11 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 				for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 				{
-					const Region& r = **i;
+					Region* r = (*i).get();
 
-					if (Confined((*i).get(), cache, ForbiddenCells))
+					if (Confined(r, cache, ForbiddenCells))
 					{
-						if (r.IsBlack())
+						if (r->IsBlack())
 						{
 							//mark_as_black.insert(make_pair(x, y));
 							mark_as_black.insert(operator()(Coordinate2D(x, y)));
@@ -777,11 +799,11 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	{
-		const Region& r = **i;
+		Region* r = (*i).get();
 
-		if (r.IsNumbered() && r.RegionSize() < r.GetNumber())
+		if (r->IsNumbered() && r->RegionSize() < r->GetNumber())
 		{
-			for (auto u = r.UnknownsBegin(); u != r.UnknownsEnd(); ++u)
+			for (auto u = r->UnknownsBegin(); u != r->UnknownsEnd(); ++u)
 			{
 				set<Cell*> ForbiddenCells;
 				ForbiddenCells.insert(*u);
@@ -795,7 +817,8 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 
 				for (auto k = m_Regions.begin(); k != m_Regions.end(); ++k)
 				{
-					if (k != i && (*k)->IsNumbered() && Confined((*k).get(), cache, ForbiddenCells))
+					auto kRegPtr = (*k).get();
+					if (kRegPtr != r && (kRegPtr)->IsNumbered() && Confined(kRegPtr, cache, ForbiddenCells))
 					{
 						mark_as_black.insert(*u);
 					}
@@ -810,7 +833,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	}
 
 	//SolveConfinementAnalysis
-
+	cout << "x7" << endl;
 
 	//auto res11 = SolvePartialBlackRegionsWithOnlyOnePath(Verbose);
 	//if (res11)
@@ -883,17 +906,35 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 			for (int i = 0; i < 2; ++i)
 			{
 				const State color = i == 0 ? State::Black : State::White;
+				
 				auto& mark_as_diff = i == 0 ? mark_as_white : mark_as_black;
 				auto& mark_as_same = i == 0 ? mark_as_black : mark_as_white;
-				//auto& mark_as_same = i == 0 ? mark_as_white : mark_as_black;
+
 				//auto& mark_as_diff = i == 0 ? mark_as_black : mark_as_white;
-				
-				//mark_as_same
+				//auto& mark_as_same = i == 0 ? mark_as_white : mark_as_black;
+			
+				//auto& mark_as_diff = mark_as_white;
+				//auto& mark_as_same = mark_as_black;
+
+				//if (i == 1)
+				//{
+				//	std::swap(mark_as_diff, mark_as_same);
+				//}
+
+	
 				Grid other(*this);
 
-				//auto OthersCurrentCell = other.operator()(Coordinate2D(x, y));
 
-				other.Mark(other.operator()(Coordinate2D(x, y)), color);//(*u).first, (*u).second)), color);
+
+				//auto OthersCurrentCell = ;
+
+				//other.Mark(operator()(Coordinate2D(x, y)), color);//(*u).first, (*u).second)), color);
+				std::cout << "Other.marked cell before " << *other.operator()(Coordinate2D(x, y)) << endl;
+				//State OldState = other.operator()(Coordinate2D(x, y))->GetState();
+				other.Mark(other.operator()(Coordinate2D(x, y)), color);
+				
+				std::cout << "Other.marked cell after " << *other.operator()(Coordinate2D(x, y)) << endl;
+				std::cout << "Other.marked cell address = " << std::addressof(*other.operator()(Coordinate2D(x, y))) << endl;
 
 				SolveStatus sr = SolveStatus::KEEP_GOING;
 
@@ -908,8 +949,13 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 				if (sr == SolveStatus::CONTRADICTION_FOUND)
 				{
 					//mark_as_diff.insert(make_pair(x, y));
-
+					std::cout << "marked to be inserted as diff cell before = " << *operator()(Coordinate2D(x, y)) << endl;
+					std::cout << "marked to be inserted as diff cell address = " << std::addressof(*operator()(Coordinate2D(x, y))) << endl;
+				
 					mark_as_diff.insert(operator()(Coordinate2D(x, y)));
+					//mark_as_diff.insert(OthersCurrentCell);
+
+					//cout << *operator()(Coordinate2D(x, y)) << endl;
 					//mark_as_diff.insert(*u);
 					//mark_as_diff.insert(operator()(Coordinate2D((*u)->GetPosition().GetX(), (*u)->GetPosition().GetY())));
 
@@ -918,7 +964,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 					Process(Verbose, mark_as_black, mark_as_white,
 						"Hypothetical contradiction found. x8");
 
-
+					std::cout << "marked to be inserted as diff cell after = " << *operator()(Coordinate2D(x, y)) << endl;
 
 					//for (auto& CellToMarkBlack : mark_as_black)
 					//{
@@ -940,11 +986,15 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 				if (sr == SolveStatus::SOLUTION_FOUND)
 				{
 					//mark_as_same.insert(make_pair(x, y));
+					std::cout << "marked to be inserted as same cell = " << *operator()(Coordinate2D(x, y)) << endl;
+					std::cout << "marked to be inserted as same cell address = " << std::addressof(*operator()(Coordinate2D(x, y))) << endl;
 
 					mark_as_same.insert(operator()(Coordinate2D(x, y)));
+					//mark_as_same.insert(OthersCurrentCell);
+
 					//mark_as_same.insert(operator()(Coordinate2D((*u).first, (*u).second)));
 					//other.Mark(other.operator()(Coordinate2D(, color);
-
+					//cout << *operator()(Coordinate2D(x, y)) << endl;
 
 					Process(Verbose, mark_as_black, mark_as_white,
 						"Hypothetical solution found. x9");
@@ -961,6 +1011,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 					//	Mark(CellToMarkWhite, State::White);
 					//}
 					//m_sitrep = SolveStatus::SOLUTION_FOUND;
+					//other.m_sitrep = SolveStatus::SOLUTION_FOUND;
 					return m_sitrep;
 
 
@@ -975,7 +1026,7 @@ SolveStatus Grid::SolvePuzzle(bool Verbose, bool Guessing)
 	//m_sitrep = SolveStatus::CANNOT_PROCEED;
 	//return m_sitrep;
 
-
+	//cout << "x8" << endl;
 
 	if (Verbose)
 	{
@@ -1005,11 +1056,13 @@ bool Grid::Process(const bool verbose, const set<Cell*>& mark_as_black, const se
 	
 	for (auto i = mark_as_black.begin(); i != mark_as_black.end(); ++i)
 	{
+		//cout << *operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY())) << endl;
 		Mark(operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY())), State::Black);
 	}
 	
 	for (auto i = mark_as_white.begin(); i != mark_as_white.end(); ++i)
 	{
+		//cout << *operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY())) << endl;
 		Mark(operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY())), State::White);
 	}
 	
@@ -1132,6 +1185,8 @@ SolveStatus Grid::SolveGuessingRemaining(bool IsVerbose, bool IsGuessing)
 					//mark_as_diff.insert(*u);
 					mark_as_diff.insert(operator()(Coordinate2D((*u)->GetPosition().GetX(), (*u)->GetPosition().GetY())));
 
+					cout << *operator()(Coordinate2D((*u)->GetPosition().GetX(), (*u)->GetPosition().GetY())) << endl;
+
 					Process(IsVerbose, mark_as_black, mark_as_white,
 						"Hypothetical contradiction found.");
 
@@ -1160,6 +1215,8 @@ SolveStatus Grid::SolveGuessingRemaining(bool IsVerbose, bool IsGuessing)
 				
 					//mark_as_same.insert(operator()(Coordinate2D(x, y)));
 					mark_as_same.insert(operator()(Coordinate2D((*u)->GetPosition().GetX(), (*u)->GetPosition().GetY())));
+
+					cout << *operator()(Coordinate2D((*u)->GetPosition().GetX(), (*u)->GetPosition().GetY())) << endl;
 
 					Process(IsVerbose, mark_as_black, mark_as_white,
 						"Hypothetical solution found.");
@@ -1361,103 +1418,103 @@ bool Grid::SolveConfinementAnalysis(std::map<Region*, set<Cell*>>& cache, bool V
 		//   eventually occupy.)
 	
 
-	std::set<Cell*> mark_as_white;
-	std::set<Cell*> mark_as_black;
+	//std::set<Cell*> mark_as_white;
+	//std::set<Cell*> mark_as_black;
 
-	for (int x = 0; x < m_Width; ++x)
-	{
-		for (int y = 0; y < m_Height; ++y)
-		{
-			auto CurrentCell = operator()(Coordinate2D(x, y));
+	//for (int x = 0; x < m_Width; ++x)
+	//{
+	//	for (int y = 0; y < m_Height; ++y)
+	//	{
+	//		auto CurrentCell = operator()(Coordinate2D(x, y));
 
-			if (CurrentCell->GetState() == State::Unknown)
-			{
-				set<Cell*> ForbiddenCells;
-				ForbiddenCells.insert(CurrentCell);
+	//		if (CurrentCell->GetState() == State::Unknown)
+	//		{
+	//			set<Cell*> ForbiddenCells;
+	//			ForbiddenCells.insert(CurrentCell);
 
-				for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
-				{
-					const Region& r = **i;
+	//			for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
+	//			{
+	//				const Region& r = **i;
 
-					if (Confined((*i).get(), cache, ForbiddenCells))
-					{
-						if (r.IsBlack())
-						{
-							//mark_as_black.insert(make_pair(x, y));
-							mark_as_black.insert(operator()(Coordinate2D(x, y)));
-							//mark_as_black.insert(CurrentCell);
-						
-						}
-						else
-						{
-							//mark_as_white.insert(make_pair(x, y));
-							mark_as_white.insert(operator()(Coordinate2D(x, y)));
-							//mark_as_white.insert(CurrentCell);
-							//CurrentCell
-						}
-					}
-				}
-			}
-		}
-	}
-	
-	
-	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
-	{
-		const Region& r = **i;
-
-		if (r.IsNumbered() && r.RegionSize() < r.GetNumber()) 
-		{
-			for (auto u = r.UnknownsBegin(); u != r.UnknownsEnd(); ++u) 
-			{
-				set<Cell*> ForbiddenCells;
-				ForbiddenCells.insert(*u);
-
-				//insert_valid_unknown_neighbors(ForbiddenCells, u->first, u->second);
-				For_All_Valid_Unknown_Neighbors(operator()(Coordinate2D((*u)->GetPosition().GetX(),
-					(*u)->GetPosition().GetY())), [&ForbiddenCells](Cell* NeighborCell) -> auto
-				{
-					ForbiddenCells.insert(NeighborCell);
-				});
-
-				for (auto k = m_Regions.begin(); k != m_Regions.end(); ++k)
-				{
-					if (k != i && (*k)->IsNumbered() && Confined((*k).get(), cache, ForbiddenCells)) 
-					{
-						mark_as_black.insert(*u);
-					}
-				}
-			}
-		}
-	}
-	
-	//cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+	//				if (Confined((*i).get(), cache, ForbiddenCells))
+	//				{
+	//					if (r.IsBlack())
+	//					{
+	//						//mark_as_black.insert(make_pair(x, y));
+	//						mark_as_black.insert(operator()(Coordinate2D(x, y)));
+	//						//mark_as_black.insert(CurrentCell);
+	//					
+	//					}
+	//					else
+	//					{
+	//						//mark_as_white.insert(make_pair(x, y));
+	//						mark_as_white.insert(operator()(Coordinate2D(x, y)));
+	//						//mark_as_white.insert(CurrentCell);
+	//						//CurrentCell
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 	//
-	//for (auto& CellToMarkBlack : mark_as_black)
+	//
+	//for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	//{
-	//	Mark(CellToMarkBlack, State::Black);
+	//	const Region& r = **i;
+
+	//	if (r.IsNumbered() && r.RegionSize() < r.GetNumber()) 
+	//	{
+	//		for (auto u = r.UnknownsBegin(); u != r.UnknownsEnd(); ++u) 
+	//		{
+	//			set<Cell*> ForbiddenCells;
+	//			ForbiddenCells.insert(*u);
+
+	//			//insert_valid_unknown_neighbors(ForbiddenCells, u->first, u->second);
+	//			For_All_Valid_Unknown_Neighbors(operator()(Coordinate2D((*u)->GetPosition().GetX(),
+	//				(*u)->GetPosition().GetY())), [&ForbiddenCells](Cell* NeighborCell) -> auto
+	//			{
+	//				ForbiddenCells.insert(NeighborCell);
+	//			});
+
+	//			for (auto k = m_Regions.begin(); k != m_Regions.end(); ++k)
+	//			{
+	//				if (k != i && (*k)->IsNumbered() && Confined((*k).get(), cache, ForbiddenCells)) 
+	//				{
+	//					mark_as_black.insert(*u);
+	//				}
+	//			}
+	//		}
+	//	}
 	//}
+	//
+	////cout << "MarkAsBlackSize() == " << mark_as_black.size() << endl;
+	////
+	////for (auto& CellToMarkBlack : mark_as_black)
+	////{
+	////	Mark(CellToMarkBlack, State::Black);
+	////}
 
-	//cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
+	////cout << "MarkAsWhiteSize() == " << mark_as_white.size() << endl;
 
-	//for (auto& CellToMarkWhite : mark_as_white)
+	////for (auto& CellToMarkWhite : mark_as_white)
+	////{
+	////	Mark(CellToMarkWhite, State::White);
+	////}
+
+	////const bool Verbose = true;
+	//if (Process(Verbose, mark_as_black, mark_as_white, "Confinement analysis succeeded.")) 
 	//{
-	//	Mark(CellToMarkWhite, State::White);
+	//	return true; // m_sitrep;
 	//}
-
-	//const bool Verbose = true;
-	if (Process(Verbose, mark_as_black, mark_as_white, "Confinement analysis succeeded.")) 
-	{
-		return true; // m_sitrep;
-	}
-	else
-	{
+	//else
+	//{
 		return false;
-	}
+	//}
 
 }
 
-bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const std::set<Cell*>& forbidden)
+bool Grid::Confined(Region*& r, std::map<Region*, std::set<Cell*>>& cache, const std::set<Cell*>& forbidden)
 {
 
 	// When we look for contradictions, we run confinement analysis (A) without forbidden cells.
@@ -1480,10 +1537,7 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 
 		const auto& consumed = i->second;
 
-		if (none_of(forbidden.begin(), forbidden.end(), [&](Cell* p)
-		{
-			return consumed.find(p) != consumed.end();
-		}))
+		if (none_of(forbidden.begin(), forbidden.end(), [&](auto& p){return consumed.find(p) != consumed.end();}))
 		{
 			return false;
 		}
@@ -1503,7 +1557,7 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 	{
 
 		// Consider cell p.
-		Cell* p = *open.begin();
+		Cell* p = *(open.begin());
 		open.erase(open.begin());
 
 		// If it's forbidden or we've already consumed it, discard it.
@@ -1571,9 +1625,9 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 				For_All_Valid_Neighbors(InCell, [&](Cell* NeighborCell)
 				{
 
-					const auto& other = NeighborCell->GetRegion();
+					Region* other = NeighborCell->GetRegion();
 
-					if (other && other->IsNumbered() && other != r)
+					if (other && other->IsNumbered() && (&(*other) != &(*r)))
 					{
 						rejected = true;
 					}
@@ -1606,8 +1660,7 @@ bool Grid::Confined(Region* r, std::map<Region*, std::set<Cell*>>& cache, const 
 
 			// insert_valid_neighbors(open, p.first, p.second);
 
-			For_All_Valid_Neighbors(operator()(Coordinate2D((p)->GetPosition().GetX(),
-				(p)->GetPosition().GetY())), [&open](Cell* NeighborCell) -> auto
+			For_All_Valid_Neighbors(p, [&open](auto NeighborCell) -> auto
 			{
 				open.insert(NeighborCell);
 			});
@@ -1676,23 +1729,22 @@ std::string Grid::DetectContradictions(std::map<Region*, set<Cell*>>& Cache)
 
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	{
-		Region& r = **i;
+		Region* r = (*i).get();
 
 		// We don't need to look for gigantic black regions because
 		// counting black cells is strictly more powerful.
 
-		if (r.IsWhite() && Impossibly_big_white_region(r.RegionSize())
-			|| r.IsNumbered() && r.RegionSize() > r.GetNumber())
+		if (r->IsWhite() && Impossibly_big_white_region(r->RegionSize())
+			|| r->IsNumbered() && r->RegionSize() > r->GetNumber())
 		{
 			return "Contradiction found! Gigantic region detected.";
 		}
 
-		(r.IsBlack() ? black_cells : white_cells) += r.RegionSize();
+		(r->IsBlack() ? black_cells : white_cells) += r->RegionSize();
 
 
-		if (Confined((*i).get(), Cache))
+		if (Confined(r, Cache))
 		{
-			
 			return "Contradiction found! Confined region detected.";
 		}
 	}
@@ -2882,7 +2934,12 @@ bool Grid::SolveCellsWithTwoAdjacentNumberedCells(bool Verbose)
 
 void Grid::Mark(Cell* InCell, const State NewState)
 {
-	//if (InCell && InCell->GetPosition() == Coordinate2D(4, 0))
+	//if (InCell && InCell->GetPosition() == Coordinate2D(6, 3))
+	//{
+	//	cout << *InCell << endl;
+	//}
+
+	//if (InCell && InCell->GetPosition() == Coordinate2D(9, 1))
 	//{
 	//	cout << *InCell << endl;
 	//}
@@ -2913,7 +2970,7 @@ void Grid::Mark(Cell* InCell, const State NewState)
 	//	// If we're asked to mark an already known cell, we've encountered a contradiction.
 	//	// Remember this, so that solve() can report the contradiction.
 	//
-	if (InCell->GetState() != State::Unknown) 
+	if (operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY()))->GetState() != State::Unknown)
 	{
 		m_sitrep = SolveStatus::CONTRADICTION_FOUND;
 		return;
@@ -2921,23 +2978,23 @@ void Grid::Mark(Cell* InCell, const State NewState)
 
 
 
+	operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY()))->SetState(NewState);
+	//if (NewState == State::Black)
+	//{
+	//	InCell->SetState(State::Black);
+	//}
+	//else if (NewState == State::White)
+	//{
+	//	InCell->SetState(State::White);
+	//}
+	//else
+	//{
 
-	if (NewState == State::Black)
-	{
-		InCell->SetState(State::Black);
-	}
-	else if (NewState == State::White)
-	{
-		InCell->SetState(State::White);
-	}
-	else
-	{
-
-	}
+	//}
 
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	{
-		(*i)->EraseUnknown(InCell);
+		(*i).get()->EraseUnknown(InCell);
 	}
 
 	//  Marking a cell as white or black could create an independent region,
@@ -2945,14 +3002,14 @@ void Grid::Mark(Cell* InCell, const State NewState)
 	//	The easiest thing to do is to create a region for this cell,
 	//	and then fuse it to any adjacent compatible regions.
 	
-	AddRegion(InCell);
+	AddRegion(operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY())));
 	
 	//	Don't attempt to cache these regions.
 	//	Each fusion could change this cell's region or its neighbors' regions.
 
-	For_All_Valid_Neighbors(InCell, [this, &InCell](Cell* NeighborCell)
+	For_All_Valid_Neighbors(operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY())), [this, &InCell](Cell* NeighborCell)
 	{
-		FuseRegions(InCell->GetRegion(), NeighborCell->GetRegion());
+		FuseRegions(operator()(Coordinate2D(InCell->GetPosition().GetX(), InCell->GetPosition().GetY()))->GetRegion(), NeighborCell->GetRegion());
 	});
 
 }
@@ -3011,8 +3068,9 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 	// Update the secondary region's cells to point to the primary region.
 	for (std::set<Cell*>::iterator i = RHSRegion->Begin(); i != RHSRegion->End(); ++i)
 	{
-		(*i)->SetRegion(LHSRegion);
-		//operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY()))->SetRegion(LHSRegion);
+		//(*i)->SetRegion(LHSRegion);
+
+		operator()(Coordinate2D((*i)->GetPosition().GetX(), (*i)->GetPosition().GetY()))->SetRegion(LHSRegion);
 		//region(i->first, i->second) = r1; 
 	}
 
@@ -3022,10 +3080,11 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 	//m_regions.erase(r2);
 	for (auto i = m_Regions.begin(); i != m_Regions.end(); ++i)
 	{
-		if ((*i).get() == RHSRegion)
+		auto& CurRegPtr = (*i);
+		if (((CurRegPtr).get()) == (RHSRegion))
 		{
 			//std::cout << *RHSRegion << endl;
-			m_Regions.erase(i);
+			m_Regions.erase(CurRegPtr);
 			return;
 		}
 	}
@@ -3036,7 +3095,7 @@ void Grid::FuseRegions(Region* LHSRegion, Region* RHSRegion)
 // A cell is valid if it's a valid index on the board so x is between [0, width) y is between [0, height)
 bool Grid::IsValid(Coordinate2D Cord) const
 {
-	if (Cord.GetX() >= 0 && Cord.GetX() < m_Width && Cord.GetY() >= 0 && Cord.GetY() < m_Height)
+	if (((Cord.GetX() >= 0) && (Cord.GetX() < m_Width) && (Cord.GetY()) >= 0) && (Cord.GetY() < m_Height))
 	{
 		return true;
 	}

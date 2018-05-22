@@ -27,8 +27,8 @@ public:
 
 
 	// TODO: Need to make iterator class to make accessing the std::sets easier
-	std::set<Cell*>& GetCellsInRegion() { return m_Cells; }
-	std::set<Cell*>& GetUnknownsAroundRegion() { return m_Unknowns; }
+	std::set<Cell*> GetCellsInRegion() { return m_Cells; }
+	std::set<Cell*> GetUnknownsAroundRegion() { return m_Unknowns; }
 
 	std::set<Cell*>::const_iterator Begin() const;
 	std::set<Cell*>::const_iterator End() const;
@@ -71,7 +71,7 @@ public:
 private:
 	std::set<Cell*> m_Unknowns;
 	std::set<Cell*> m_Cells; // The cells that make up this region.
-	State m_RegionState; // The state of the entire region
+	State m_RegionState;//{ State::Unknown }; // The state of the entire region
 
 };
 

@@ -9,6 +9,8 @@
 
 Region* Cell::GetRegion() const
 {
+	/*if (!m_Region)
+		return nullptr;*/
 	return m_Region;//  != nullptr ? m_Region : throw std::exception("Tried to get a null region");
 }
 
@@ -44,4 +46,20 @@ std::ostream & operator<<(std::ostream & os, const Cell & RHS)
 
 	os << RHS.GetPosition() << ", " << "State: " << DisplayString << "\n";
 	return os;
+}
+
+
+bool operator==(const Cell& lhs, const Cell& rhs)
+{
+	if (lhs.m_GridPosition.GetX() == rhs.m_GridPosition.GetX() && lhs.m_GridPosition.GetY() == rhs.m_GridPosition.GetY())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool operator!=(const Cell& lhs, const Cell& rhs)
+{
+	return !(lhs == rhs);
 }

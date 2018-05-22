@@ -27,7 +27,7 @@ class Cell
 {
 public:
 	Cell() = delete;
-	Cell(Coordinate2D Pos, State InState) : m_GridPosition(Pos), m_State(InState) {}
+	Cell(Coordinate2D Pos, State InState/*, Region* InReg*/) : m_GridPosition(Pos), m_State(InState)/*, m_Region(InReg) */{}
 	
 	//Cell(int X, int Y, State InState) : m_GridPosition(Coordinate2D(X, Y)), m_State(InState) {}
 	~Cell() = default;
@@ -44,6 +44,9 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const Cell& RHS);
 
+	friend bool operator==(const Cell& lhs, const Cell& rhs);
+	friend bool operator!=(const Cell& lhs, const Cell& rhs);
+
 private:
 	Coordinate2D m_GridPosition{ 0, 0 };
 	State m_State{ State::Unknown };
@@ -51,5 +54,8 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os, const Cell& RHS);
+
+bool operator==(const Cell& lhs, const Cell& rhs);
+bool operator!=(const Cell& lhs, const Cell& rhs);
 
 #endif // !Cell_H
